@@ -8,14 +8,14 @@ func TestParseConnectionList(t *testing.T) {
 	sampleOutput := `
 Available connections:
 ----------------------
-vpn.vittal.com.ar
-vpn_contingencia.vittal.com.ar
+vpn.company.com
+vpn_contingencia.company.com
 office.company.org
 
 `
 	expected := []string{
-		"vpn.vittal.com.ar",
-		"vpn_contingencia.vittal.com.ar",
+		"vpn.company.com",
+		"vpn_contingencia.company.com",
 		"office.company.org",
 	}
 
@@ -35,12 +35,12 @@ func TestParseConnectionListTabular(t *testing.T) {
 	sampleOutput := `
 Connection Name                     Status
 ==============================================
-vpn.vittal.com.ar                   Connected
-vpn_contingencia.vittal.com.ar      Disconnected
+vpn.company.com                   Connected
+vpn_contingencia.company.com      Disconnected
 `
 	expected := []string{
-		"vpn.vittal.com.ar",
-		"vpn_contingencia.vittal.com.ar",
+		"vpn.company.com",
+		"vpn_contingencia.company.com",
 	}
 
 	result := ParseConnectionList(sampleOutput)
@@ -57,17 +57,17 @@ vpn_contingencia.vittal.com.ar      Disconnected
 
 func TestParseConnectionListDeduplication(t *testing.T) {
 	sampleOutput := `
-vpn.vittal.com.ar
-VPN.VITTAL.COM.AR
-vpn.vittal.com.ar
+vpn.company.com
+VPN.COMPANY.COM
+vpn.company.com
 vpn_backup.domain.com
 `
 	result := ParseConnectionList(sampleOutput)
 	if len(result) != 2 {
 		t.Fatalf("Expected 2 deduplicated connections, got %d (%v)", len(result), result)
 	}
-	if result[0] != "vpn.vittal.com.ar" {
-		t.Errorf("Expected first connection to be 'vpn.vittal.com.ar', got %q", result[0])
+	if result[0] != "vpn.company.com" {
+		t.Errorf("Expected first connection to be 'vpn.company.com', got %q", result[0])
 	}
 	if result[1] != "vpn_backup.domain.com" {
 		t.Errorf("Expected second connection to be 'vpn_backup.domain.com', got %q", result[1])

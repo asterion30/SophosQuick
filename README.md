@@ -53,7 +53,7 @@ La interfaz está organizada en una tarjeta moderna y equilibrada:
 │  Secure VPN Launcher                             │
 ├──────────────────────────────────────────────────┤
 │  Perfil de Conexión:                             │
-│  [ vpn.**.com.ar                      ▼ ] 🔄 │
+│  [ vpn.company.com                         ▼ ] 🔄 │
 ├──────────────────────────────────────────────────┤
 │  Código MFA / TOTP:                              │
 │  [ 123456                                      ] │

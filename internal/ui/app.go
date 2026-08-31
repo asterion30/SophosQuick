@@ -40,7 +40,7 @@ type UI struct {
 
 // New creates and initializes the SophosQuick UI.
 func New(cfg *config.Config, client *sophos.Client) *UI {
-	a := app.NewWithID("com.vittal.sophosquick")
+	a := app.NewWithID("io.github.sophosquick")
 	a.Settings().SetTheme(&DarkSlateTheme{})
 
 	w := a.NewWindow("SophosQuick")

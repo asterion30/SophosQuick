@@ -11,8 +11,8 @@ func TestScanConnectionsDir(t *testing.T) {
 
 	// Create dummy profile files
 	filesToCreate := []string{
-		"vpn.vittal.com.ar.tgb",
-		"vpn_contingencia.vittal.com.ar.ovpn",
+		"vpn.company.com.tgb",
+		"vpn_contingencia.company.com.ovpn",
 		"office_remote.apx",
 		"legacy.conf",
 		"custom_connection.json",
@@ -38,8 +38,8 @@ func TestScanConnectionsDir(t *testing.T) {
 	}
 
 	expectedFound := map[string]bool{
-		"vpn.vittal.com.ar":               true,
-		"vpn_contingencia.vittal.com.ar": true,
+		"vpn.company.com":               true,
+		"vpn_contingencia.company.com": true,
 		"office_remote":                   true,
 		"legacy":                          true,
 		"custom_connection":               true,
@@ -67,8 +67,8 @@ func TestDiscoverConnectionsMergeAndFallback(t *testing.T) {
 
 	fallbacks := []string{
 		"scanned_profile",               // Duplicate of scanned, should deduplicate
-		"fallback.vittal.com.ar",
-		"vpn_backup.vittal.com.ar",
+		"fallback.company.com",
+		"vpn_backup.company.com",
 	}
 
 	// Mock client with non-existent path
@@ -81,8 +81,8 @@ func TestDiscoverConnectionsMergeAndFallback(t *testing.T) {
 
 	expected := []string{
 		"scanned_profile",
-		"fallback.vittal.com.ar",
-		"vpn_backup.vittal.com.ar",
+		"fallback.company.com",
+		"vpn_backup.company.com",
 	}
 
 	if len(discovered) != len(expected) {

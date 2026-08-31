@@ -53,11 +53,11 @@ func GetCurrentUsername() string {
 // DefaultConfig returns a Config struct populated with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		DefaultConnection: "vpn.vittal.com.ar",
+		DefaultConnection: "vpn.company.com",
 		Username:          GetCurrentUsername(),
 		FallbackConnections: []string{
-			"vpn.vittal.com.ar",
-			"vpn_contingencia.vittal.com.ar",
+			"vpn.company.com",
+			"vpn_backup.company.com",
 		},
 		AutoConnect:  false,
 		SaveLastUsed: true,

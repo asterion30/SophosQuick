@@ -18,8 +18,8 @@ SCRIPT_PATH = get_resource_path("Conectar-SophosVPN.ps1")
 
 # Configuracion de conexiones (Puedes agregar más o cambiar los nombres)
 CONEXIONES = [
-    "vpn.vittal.com.ar",
-    "vpn_contingencia.vittal.com.ar"
+    "vpn.company.com",
+    "vpn_backup.company.com"
 ]
 
 def ejecutar_script(argumentos):

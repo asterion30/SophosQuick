@@ -11,8 +11,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Fatalf("DefaultConfig returned nil")
 	}
 
-	if cfg.DefaultConnection != "vpn.vittal.com.ar" {
-		t.Errorf("Expected default connection 'vpn.vittal.com.ar', got %q", cfg.DefaultConnection)
+	if cfg.DefaultConnection != "vpn.company.com" {
+		t.Errorf("Expected default connection 'vpn.company.com', got %q", cfg.DefaultConnection)
 	}
 
 	if len(cfg.FallbackConnections) < 2 {
@@ -29,8 +29,8 @@ func TestLoadNonExistentConfigFile(t *testing.T) {
 		t.Fatalf("LoadConfig should not fail for non-existent file, got: %v", err)
 	}
 
-	if cfg.DefaultConnection != "vpn.vittal.com.ar" {
-		t.Errorf("Expected default connection 'vpn.vittal.com.ar', got %q", cfg.DefaultConnection)
+	if cfg.DefaultConnection != "vpn.company.com" {
+		t.Errorf("Expected default connection 'vpn.company.com', got %q", cfg.DefaultConnection)
 	}
 }
 

@@ -1,5 +1,5 @@
 param(
-    [string]$ConnectionName = "vpn.vittal.com.ar", # Cambia esto por el nombre exacto de tu conexión en Sophos
+    [string]$ConnectionName = "vpn.company.com", # Cambia esto por el nombre exacto de tu conexión en Sophos
     [string]$Username = $env:USERNAME,             # Usa el nombre del usuario de Windows actual
     [switch]$Configurar,                       # Usar este flag para guardar/cambiar la contraseña
     [switch]$Desconectar,                      # Usar este flag para desconectar
