@@ -27,25 +27,24 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          cache: true
+          cache: false
 
-      - name: Descargar Dependencias
+      - name: Descargar Dependencias y Generar go.sum
         run: |
           go mod tidy
-          go mod download
 
-      - name: Instalar Herramienta de Metadatos de Versión (goversioninfo)
+      - name: Instalar Herramienta de Metadatos (goversioninfo)
         run: |
           go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
 
-      - name: Generar Recursos de Manifiesto e Icono (.syso)
+      - name: Generar Recursos de Manifiesto (.syso)
         shell: pwsh
         run: |
           cd cmd/sophosquick
           goversioninfo -manifest=../../build/windows/app.manifest ../../build/windows/versioninfo.json
           cd ../..
 
-      - name: Compilar Binario para Windows (GOOS=windows GOARCH=amd64)
+      - name: Compilar Binario para Windows
         shell: pwsh
         run: |
           $Tag = "${{ github.ref_name }}"
@@ -56,8 +55,8 @@ jobs:
 
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           
-          # Compilar sin consola (-H=windowsgui) y con símbolos optimizados (-s -w)
-          go build -trimpath -ldflags="-H=windowsgui -s -w -X 'main.Version=$Tag'" -o dist/sophosquick.exe ./cmd/sophosquick
+          # Compilar binario nativo de Windows optimizado
+          go build -ldflags="-H=windowsgui -s -w -X 'main.Version=$Tag'" -o dist/sophosquick.exe ./cmd/sophosquick
 
       - name: Generar Checksum SHA-256
         shell: pwsh
