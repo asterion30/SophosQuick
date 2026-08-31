@@ -1,6 +1,7 @@
 package sophos
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
@@ -8,150 +9,177 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"sophosquick/internal/crypto"
 )
 
-// Client handles interaction with Sophos Connect CLI (sccli.exe).
+// Default paths for sccli.exe on Windows.
+var defaultSccliPaths = []string{
+	`C:\Program Files (x86)\Sophos\Connect\sccli.exe`,
+	`C:\Program Files\Sophos\Connect\sccli.exe`,
+}
+
+// Client manages CLI interaction with Sophos Connect (sccli.exe).
 type Client struct {
-	SccliPath string
-	Username  string
+	sccliPath string
 }
 
-// NewClient detects the environment and initializes a Sophos client.
-func NewClient() *Client {
-	username := os.Getenv("USERNAME")
-	if username == "" {
-		username = os.Getenv("USER")
-	}
-	if username == "" {
-		username = "user"
+// NewClient initializes a new Sophos Client. If customPath is provided and non-empty,
+// it is used; otherwise default paths or PATH search is attempted.
+func NewClient(customPath ...string) *Client {
+	var path string
+	if len(customPath) > 0 && customPath[0] != "" {
+		path = customPath[0]
+	} else {
+		path = findDefaultSccli()
 	}
 
-	sccli := findSccli()
 	return &Client{
-		SccliPath: sccli,
-		Username:  username,
+		sccliPath: path,
 	}
 }
 
-// findSccli searches common installation paths for sccli.exe.
-func findSccli() string {
-	candidates := []string{
-		`C:\Program Files (x86)\Sophos\Connect\sccli.exe`,
-		`C:\Program Files\Sophos\Connect\sccli.exe`,
-		filepath.Join(os.Getenv("ProgramFiles(x86)"), "Sophos", "Connect", "sccli.exe"),
-		filepath.Join(os.Getenv("ProgramFiles"), "Sophos", "Connect", "sccli.exe"),
-	}
-
-	for _, p := range candidates {
-		if p != "" {
-			if _, err := os.Stat(p); err == nil {
-				return p
-			}
+// findDefaultSccli searches for sccli.exe in standard locations or PATH.
+func findDefaultSccli() string {
+	for _, p := range defaultSccliPaths {
+		if _, err := os.Stat(p); err == nil {
+			return p
 		}
 	}
 
+	// Try checking environment variables on Windows
+	if progFilesX86 := os.Getenv("ProgramFiles(x86)"); progFilesX86 != "" {
+		p := filepath.Join(progFilesX86, "Sophos", "Connect", "sccli.exe")
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	if progFiles := os.Getenv("ProgramFiles"); progFiles != "" {
+		p := filepath.Join(progFiles, "Sophos", "Connect", "sccli.exe")
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	// Try PATH lookup
 	if lp, err := exec.LookPath("sccli.exe"); err == nil {
 		return lp
 	}
 
-	return `C:\Program Files (x86)\Sophos\Connect\sccli.exe`
+	return defaultSccliPaths[0]
 }
 
-// IsInstalled returns true if sccli executable exists on the system.
+// GetSccliPath returns the current path configured for sccli.exe.
+func (c *Client) GetSccliPath() string {
+	return c.sccliPath
+}
+
+// SetSccliPath updates the path for sccli.exe.
+func (c *Client) SetSccliPath(path string) {
+	c.sccliPath = path
+}
+
+// IsInstalled checks if the sccli.exe binary exists on the system.
 func (c *Client) IsInstalled() bool {
 	if runtime.GOOS != "windows" {
-		return true // Simulated mode in development
+		return true // Allow mock/dev mode on non-windows
 	}
-	_, err := os.Stat(c.SccliPath)
+	_, err := os.Stat(c.sccliPath)
 	return err == nil
 }
 
-// DiscoverConnections scans known Sophos profile directories and returns connection names.
-func (c *Client) DiscoverConnections(defaults []string) []string {
-	found := make(map[string]bool)
-	var list []string
-
-	// Check Sophos profiles directories
-	dirs := []string{
-		`C:\Program Files (x86)\Sophos\Connect\connections`,
-		`C:\Program Files\Sophos\Connect\connections`,
-		`C:\ProgramData\Sophos\Connect\connections`,
-		filepath.Join(os.Getenv("ProgramData"), "Sophos", "Connect", "connections"),
-		filepath.Join(os.Getenv("LOCALAPPDATA"), "Sophos", "Connect", "connections"),
-	}
-
-	for _, d := range dirs {
-		if d == "" {
-			continue
-		}
-		entries, err := os.ReadDir(d)
-		if err != nil {
-			continue
-		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				name := entry.Name()
-				if !found[name] {
-					found[name] = true
-					list = append(list, name)
-				}
-			} else {
-				ext := strings.ToLower(filepath.Ext(entry.Name()))
-				if ext == ".apx" || ext == ".tgb" || ext == ".ovpn" || ext == ".pro" {
-					name := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
-					if !found[name] {
-						found[name] = true
-						list = append(list, name)
-					}
-				}
-			}
-		}
-	}
-
-	// Always ensure default corporate profiles exist
-	for _, d := range defaults {
-		if !found[d] {
-			found[d] = true
-			list = append(list, d)
-		}
-	}
-
-	return list
-}
-
-// Connect sends the credentials and TOTP to Sophos Connect.
-func (c *Client) Connect(connectionName string, totpCode string) (string, error) {
-	totpCode = strings.TrimSpace(totpCode)
-	if totpCode == "" {
-		return "", fmt.Errorf("debes ingresar el código TOTP / MFA")
-	}
-
-	basePass, err := crypto.LoadPassword()
-	if err != nil {
-		return "", fmt.Errorf("no se encontró la contraseña base: %w\nPor favor configúrala primero con '🔑 Configurar Contraseña Base'", err)
-	}
-
-	combinedPassword := basePass + totpCode
-
+// ListConnections executes `sccli.exe list` and returns parsed connection names.
+func (c *Client) ListConnections() ([]string, error) {
 	if runtime.GOOS != "windows" {
-		// Mock execution on non-Windows
-		return fmt.Sprintf("[SIMULADO] Conectando a '%s' con usuario '%s' (TOTP: %s)", connectionName, c.Username, totpCode), nil
+		return nil, nil // No live sccli on non-windows
 	}
 
 	if !c.IsInstalled() {
-		return "", fmt.Errorf("no se encontró sccli.exe en '%s'. Verifica que Sophos Connect esté instalado", c.SccliPath)
+		return nil, fmt.Errorf("sccli.exe no encontrado en %s", c.sccliPath)
 	}
 
-	cmd := exec.Command(c.SccliPath, "enable", "-n", connectionName, "-u", c.Username, "-p", combinedPassword)
-	configureHiddenWindow(cmd)
+	cmd := exec.Command(c.sccliPath, "list")
+	cmd.SysProcAttr = hideWindowSysProcAttr()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
+	err := cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("error al ejecutar 'sccli list': %w (%s)", err, stderr.String())
+	}
+
+	return ParseConnectionList(stdout.String()), nil
+}
+
+// ParseConnectionList parses the output of `sccli.exe list` to extract connection names.
+func ParseConnectionList(output string) []string {
+	var connections []string
+	seen := make(map[string]bool)
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		// Skip decorative header lines
+		if strings.HasPrefix(line, "---") || strings.HasPrefix(line, "===") {
+			continue
+		}
+		lower := strings.ToLower(line)
+		if strings.HasPrefix(lower, "available connections") ||
+			strings.HasPrefix(lower, "connection name") ||
+			strings.HasPrefix(lower, "nombre de conexión") {
+			continue
+		}
+
+		// Handle tabular output: "ConnectionName      Status"
+		parts := strings.Fields(line)
+		if len(parts) > 0 {
+			connName := parts[0]
+			connLower := strings.ToLower(connName)
+			if !seen[connLower] {
+				seen[connLower] = true
+				connections = append(connections, connName)
+			}
+		}
+	}
+
+	return connections
+}
+
+// Connect executes `sccli.exe enable -n <connName> -u <username> -p <fullPassword>`.
+func (c *Client) Connect(connName, username, fullPassword string) (string, error) {
+	connName = strings.TrimSpace(connName)
+	username = strings.TrimSpace(username)
+
+	if connName == "" {
+		return "", fmt.Errorf("el nombre de la conexión no puede estar vacío")
+	}
+	if username == "" {
+		return "", fmt.Errorf("el nombre de usuario no puede estar vacío")
+	}
+	if fullPassword == "" {
+		return "", fmt.Errorf("la contraseña no puede estar vacía")
+	}
+
+	if runtime.GOOS != "windows" {
+		return fmt.Sprintf("[SIMULADO] Conectado exitosamente a '%s' con usuario '%s'", connName, username), nil
+	}
+
+	if !c.IsInstalled() {
+		return "", fmt.Errorf("sccli.exe no encontrado en %s", c.sccliPath)
+	}
+
+	cmd := exec.Command(c.sccliPath, "enable", "-n", connName, "-u", username, "-p", fullPassword)
+	cmd.SysProcAttr = hideWindowSysProcAttr()
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	out := strings.TrimSpace(stdout.String())
 	errOut := strings.TrimSpace(stderr.String())
 
@@ -166,23 +194,28 @@ func (c *Client) Connect(connectionName string, totpCode string) (string, error)
 	}
 
 	if out == "" {
-		out = fmt.Sprintf("Comando de conexión enviado para '%s'.", connectionName)
+		out = fmt.Sprintf("Comando de conexión enviado para '%s'.", connName)
 	}
 	return out, nil
 }
 
-// Disconnect sends the disable signal for the specified connection.
-func (c *Client) Disconnect(connectionName string) (string, error) {
+// Disconnect executes `sccli.exe disable -n <connName>`.
+func (c *Client) Disconnect(connName string) (string, error) {
+	connName = strings.TrimSpace(connName)
+	if connName == "" {
+		return "", fmt.Errorf("el nombre de la conexión no puede estar vacío")
+	}
+
 	if runtime.GOOS != "windows" {
-		return fmt.Sprintf("[SIMULADO] Desconectado de '%s'", connectionName), nil
+		return fmt.Sprintf("[SIMULADO] Desconectado exitosamente de '%s'", connName), nil
 	}
 
 	if !c.IsInstalled() {
-		return "", fmt.Errorf("no se encontró sccli.exe en '%s'", c.SccliPath)
+		return "", fmt.Errorf("sccli.exe no encontrado en %s", c.sccliPath)
 	}
 
-	cmd := exec.Command(c.SccliPath, "disable", "-n", connectionName)
-	configureHiddenWindow(cmd)
+	cmd := exec.Command(c.sccliPath, "disable", "-n", connName)
+	cmd.SysProcAttr = hideWindowSysProcAttr()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -200,13 +233,18 @@ func (c *Client) Disconnect(connectionName string) (string, error) {
 	}
 
 	if out == "" {
-		out = fmt.Sprintf("Desconexión solicitada para '%s'.", connectionName)
+		out = fmt.Sprintf("Desconexión solicitada para '%s'.", connName)
 	}
 	return out, nil
 }
 
 // CheckStatus verifies if the given connection is active.
-func (c *Client) CheckStatus(connectionName string) (bool, string, error) {
+func (c *Client) CheckStatus(connName string) (bool, string, error) {
+	connName = strings.TrimSpace(connName)
+	if connName == "" {
+		return false, "Desconectado", nil
+	}
+
 	if runtime.GOOS != "windows" {
 		return false, "Desconectado", nil
 	}
@@ -215,8 +253,8 @@ func (c *Client) CheckStatus(connectionName string) (bool, string, error) {
 		return false, "Sophos no detectado", nil
 	}
 
-	cmd := exec.Command(c.SccliPath, "status", "-n", connectionName)
-	configureHiddenWindow(cmd)
+	cmd := exec.Command(c.sccliPath, "status", "-n", connName)
+	cmd.SysProcAttr = hideWindowSysProcAttr()
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
