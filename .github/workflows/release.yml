@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión del release (ej. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build & Release Windows Binary
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Código Fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Descargar Dependencias
+        run: |
+          go mod tidy
+          go mod download
+
+      - name: Instalar Herramienta de Metadatos de Versión (goversioninfo)
+        run: |
+          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+
+      - name: Generar Recursos de Manifiesto e Icono (.syso)
+        shell: pwsh
+        run: |
+          cd cmd/sophosquick
+          goversioninfo -manifest=../../build/windows/app.manifest ../../build/windows/versioninfo.json
+          cd ../..
+
+      - name: Compilar Binario para Windows (GOOS=windows GOARCH=amd64)
+        shell: pwsh
+        run: |
+          $Tag = "${{ github.ref_name }}"
+          if (-not $Tag -or $Tag -eq "main") {
+            $Tag = "${{ github.event.inputs.version }}"
+          }
+          if (-not $Tag) { $Tag = "v1.0.0" }
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          
+          # Compilar sin consola (-H=windowsgui) y con símbolos optimizados (-s -w)
+          go build -trimpath -ldflags="-H=windowsgui -s -w -X 'main.Version=$Tag'" -o dist/sophosquick.exe ./cmd/sophosquick
+
+      - name: Generar Checksum SHA-256
+        shell: pwsh
+        run: |
+          cd dist
+          $Hash = (Get-FileHash -Path sophosquick.exe -Algorithm SHA256).Hash
+          "$Hash  sophosquick.exe" | Out-File -Encoding ascii -FilePath sophosquick.exe.sha256
+          Get-Content sophosquick.exe.sha256
+          cd ..
+
+      - name: Publicar Release en GitHub
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          name: "SophosQuick ${{ github.ref_name || github.event.inputs.version }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/sophosquick.exe
+            dist/sophosquick.exe.sha256

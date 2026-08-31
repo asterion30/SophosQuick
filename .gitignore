@@ -1,0 +1,26 @@
+# Binaries and build directories
+/dist/
+/build/vpn_gui/
+*.build/
+*.dist/
+*.onefile-build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+
+# Crash reports and temp files
+nuitka-crash-report.xml
+*.log
+*.tmp
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+
+# OS generated files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informe de Desarrollo Seguro - Sophos VPN GUI</title>
+<style>
+  /* --- REGLAS DE PÁGINA Y RESET Minimalista --- */
+  @page {
+    size: A4;
+    margin: 18mm 15mm 18mm 15mm;
+    background-color: #0d0f12;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #0d0f12;
+    color: #c9d1d9;
+    margin: 0 auto;
+    max-width: 850px;
+    padding: 20px;
+    font-size: 10pt;
+    line-height: 1.6;
+  }
+
+  /* --- BANNER PRINCIPAL NEO-CLÁSICO --- */
+  .header-banner {
+    border-bottom: 2px solid #00f0ff;
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+  }
+
+  .meta-tag {
+    font-family: 'Courier New', monospace;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #00f0ff;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  h1 {
+    font-family: 'Georgia', serif;
+    font-size: 20pt;
+    color: #f0f6fc;
+    margin: 0 0 8px 0;
+    font-weight: normal;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 10pt;
+    color: #8b949e;
+    margin: 0;
+    font-style: italic;
+  }
+
+  /* --- MÓDULO HASH SHA-256 --- */
+  .hash-box {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-left: 4px solid #7000ff;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+  }
+
+  .hash-label {
+    font-family: 'Courier New', monospace;
+    font-size: 8pt;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .hash-value {
+    font-family: 'Courier New', monospace;
+    font-size: 8.5pt;
+    color: #00f0ff;
+    word-break: break-all;
+    background: #0d0f12;
+    padding: 8px 10px;
+    border-radius: 3px;
+    border: 1px solid #21262d;
+    display: block;
+    user-select: all; /* Facilita la selección/copia */
+  }
+
+  /* --- TIPOGRAFÍA Y SECCIONES --- */
+  h2 {
+    font-family: 'Georgia', serif;
+    font-size: 13pt;
+    color: #f0f6fc;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 6px;
+    margin-top: 24px;
+    margin-bottom: 12px;
+  }
+
+  h3 {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 10.5pt;
+    color: #00f0ff;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #c9d1d9;
+    text-align: justify;
+  }
+
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 12px;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  strong {
+    color: #f0f6fc;
+  }
+
+  code {
+    font-family: 'Courier New', monospace;
+    font-size: 8.5pt;
+    background-color: #161b22;
+    color: #ff7b72;
+    padding: 2px 5px;
+    border-radius: 3px;
+    border: 1px solid #30363d;
+  }
+
+  /* --- CALLOUTS DE SEGURIDAD --- */
+  .callout-important {
+    background-color: #1c1917;
+    border: 1px solid #441c1d;
+    border-left: 4px solid #ff7b72;
+    padding: 12px 14px;
+    border-radius: 4px;
+    margin: 16px 0;
+  }
+
+  .callout-title {
+    font-family: 'Courier New', monospace;
+    font-size: 8.5pt;
+    font-weight: bold;
+    color: #ff7b72;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header-banner">
+    <span class="meta-tag">// INFRASTRUCTURE & SECURITY REPORT</span>
+    <h1>Informe de Desarrollo Seguro: Sophos VPN GUI</h1>
+    <p class="subtitle">Documentación técnica de arquitectura y guía de despliegue corporativo</p>
+  </div>
+
+  <!-- Contenedor del Hash solicitado -->
+  <div class="hash-box">
+    <div class="hash-label">SHA-256 App Binary Hash (Exclusión EDR / Verificación)</div>
+    <div class="hash-value">6FF4C0414596ACA721422400ECEF711945D5DE88B5DEE11DC015E8A826AE5BB1</div>
+  </div>
+
+  <h2>1. Resumen Ejecutivo</h2>
+  <p>
+    Se ha desarrollado un cliente gráfico (GUI) para la conexión a Sophos VPN, envolviendo un script de automatización nativo en PowerShell. El objetivo principal fue facilitar a los usuarios finales el uso de la VPN sin fricciones por consola, y cumplir con estrictos estándares de ciberseguridad para un entorno corporativo.
+  </p>
+
+  <h2>2. Prácticas de Seguridad Implementadas</h2>
+
+  <h3>A. Gestión Segura de Credenciales (DPAPI)</h3>
+  <p>Las contraseñas de los usuarios no se guardan en texto plano en ningún momento del ciclo de vida de la aplicación.</p>
+  <ul>
+    <li><strong>Encriptación Nativa Windows:</strong> Empleamos la API de Microsoft (<code>ConvertTo-SecureString</code> / <code>Export-Clixml</code>), la cual utiliza la <em>Data Protection API (DPAPI)</em> del sistema operativo.</li>
+    <li><strong>Vinculación a la Sesión Local (User-bound):</strong> La clave generada queda atada criptográficamente a la cuenta de usuario de Windows actual (<code>$env:LOCALAPPDATA</code>). Ningún otro usuario, ni un administrador de la máquina o atacante con privilegios, puede desencriptar y extraer la contraseña, ya que la llave de encriptación está unida al inicio de sesión de ese usuario.</li>
+    <li><strong>Manejo Dinámico Integrado:</strong> Las credenciales aplican universalmente al perfil de Active Directory / Windows del portador en curso, resolviendo dinámicamente su identidad (<code>$env:USERNAME</code>).</li>
+  </ul>
+
+  <h3>B. Protección de Ejecución del Código</h3>
+  <ul>
+    <li><strong>Sandboxing Exclusivo (Bypass Controlado):</strong> El binario invoca las sentencias en PowerShell mediante un puente dinámico (<code>-ExecutionPolicy Bypass</code>), lo que nos permite ejecutar el flujo en entornos hiper-restringidos sin tener que socavar ni alterar las Políticas de Seguridad Locales/del Dominio (GPO) del endpoint.</li>
+    <li><strong>Prevención de Falsos Positivos - Ingeniería en C:</strong> A diferencia de las utilidades de Python convencionales (como PyInstaller) que son bloqueadas frecuentemente por motores de Machine Learning en antivirus como Sophos por desempaquetar archivos temporalmente, se implementó el compilador nativo <strong>Nuitka</strong> (vía Scons y Zig). Esta tecnología transpila el código interpretado a lenguaje <code>C</code> puro y se ensambla bajo instrucciones DLL. El resultado es un código legítimo con estructura transparente indetectable para detecciones heurísticas genéricas.</li>
+  </ul>
+
+  <h3>C. Modelo D.I.Y para EDR (Excepciones)</h3>
+  <p>El binario resultante se proyectó para desplegarse mediante:</p>
+  <ul>
+    <li><strong>Exclusión Global por Hashing SHA-256:</strong> Evitando la insegura técnica de realizar white-listing sobre las carpetas de Descargas o directorios locales (que permiten secuestros de DLLs y abuso de directorios).</li>
+  </ul>
+
+  <h2>3. Instrucciones de Primer Uso</h2>
+  <p>Bienvenido al conector rápido de Sophos VPN. Para que puedas usarlo en este equipo, sigue los pasos de única vez a continuación.</p>
+
+  <div class="callout-important">
+    <div class="callout-title">⚠️ PRE-REQUISITO IMPORTANTE</div>
+    <div>Verifique que su agente regular de <strong>Sophos Connect</strong> se encuentra instalado en la zona inferior derecha del reloj de su computadora.</div>
+  </div>
+
+  <h3>Fase 1: Creación Segura de la Contraseña (Por Única Vez)</h3>
+  <p>Dado que es la primera vez que inicia sesión en esta computadora, las credenciales aún no se han registrado en la bóveda cifrada.</p>
+  <ol>
+    <li>Haz doble clic en el programa <code>vpn_gui.exe</code>.</li>
+    <li><strong>NO presiones el botón "Conectar VPN" todavía.</strong></li>
+    <li>Haz clic en el último botón: <strong>"🔑 Cambiar Contraseña Base"</strong>.</li>
+    <li>Se abrirá un candado. Introduce tu <strong>contraseña general de la empresa</strong> (<em>IMPORTANTE: SIN EL CÓDIGO TEMPORAL - TOTP</em>) y pulsa en Aceptar.</li>
+    <li>El sistema reportará que la contraseña ha sido cifrada y asegurada exitosamente en el equipo.</li>
+  </ol>
+
+  <h3>Fase 2: Conectarse a la Empresa (Uso Diario)</h3>
+  <p>Tras confirmar el paso 1, podrás usar esta herramienta todos los días:</p>
+  <ol>
+    <li>Selecciona el <strong>Perfil de conexión</strong> que vas a usar en la ventana desplegable.</li>
+    <li>Haz clic en el botón principal <strong>"🚀 Conectar VPN"</strong>.</li>
+    <li>Revisa el autenticador en tu teléfono e <strong>Ingresa tu código MFA/TOTP (6 dígitos)</strong> actual.</li>
+    <li>Dale a confirmar. Notarás al momento en la sección de notificaciones de Windows que Sophos Connect validó las identidades y concretó la sesión.</li>
+  </ol>
+
+</body>
+</html>
