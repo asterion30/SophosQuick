@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"sophosquick/internal/config"
@@ -274,21 +273,19 @@ func (u *UI) onConnect() {
 		output, err := u.Client.Connect(selectedProfile, username, fullPassword)
 		time.Sleep(500 * time.Millisecond) // Smooth UX transition
 
-		fyne.Do(func() {
-			u.setBusy(false)
-			if err != nil {
-				u.setStatus("Desconectado")
-				u.setFeedback("❌ Error en conexión")
-				dialog.ShowError(fmt.Errorf("Fallo al conectar:\n%v", err), u.Window)
-				u.Window.Canvas().Focus(u.totpEntry)
-			} else {
-				u.setStatus("Conectado")
-				u.setFeedback("✅ Conexión iniciada con éxito")
-				// Clear TOTP entry for security after successful attempt
-				u.totpEntry.SetText("")
-				dialog.ShowInformation("VPN en Proceso", fmt.Sprintf("Se ha enviado la orden de conexión a Sophos Connect:\n%s\n\nVerifica el agente de Sophos en la bandeja del sistema.", output), u.Window)
-			}
-		})
+		u.setBusy(false)
+		if err != nil {
+			u.setStatus("Desconectado")
+			u.setFeedback("❌ Error en conexión")
+			dialog.ShowError(fmt.Errorf("Fallo al conectar:\n%v", err), u.Window)
+			u.Window.Canvas().Focus(u.totpEntry)
+		} else {
+			u.setStatus("Conectado")
+			u.setFeedback("✅ Conexión iniciada con éxito")
+			// Clear TOTP entry for security after successful attempt
+			u.totpEntry.SetText("")
+			dialog.ShowInformation("VPN en Proceso", fmt.Sprintf("Se ha enviado la orden de conexión a Sophos Connect:\n%s\n\nVerifica el agente de Sophos en la bandeja del sistema.", output), u.Window)
+		}
 	}()
 }
 
@@ -310,18 +307,16 @@ func (u *UI) onDisconnect() {
 		output, err := u.Client.Disconnect(selectedProfile)
 		time.Sleep(300 * time.Millisecond)
 
-		fyne.Do(func() {
-			u.setBusy(false)
-			u.setStatus("Desconectado")
-			if err != nil {
-				u.setFeedback("❌ Error al desconectar")
-				dialog.ShowError(fmt.Errorf("Error al desconectar:\n%v", err), u.Window)
-			} else {
-				u.setFeedback("Desconectado")
-				dialog.ShowInformation("VPN Desconectada", fmt.Sprintf("Se ha enviado la señal de desconexión:\n%s", output), u.Window)
-			}
-			u.Window.Canvas().Focus(u.totpEntry)
-		})
+		u.setBusy(false)
+		u.setStatus("Desconectado")
+		if err != nil {
+			u.setFeedback("❌ Error al desconectar")
+			dialog.ShowError(fmt.Errorf("Error al desconectar:\n%v", err), u.Window)
+		} else {
+			u.setFeedback("Desconectado")
+			dialog.ShowInformation("VPN Desconectada", fmt.Sprintf("Se ha enviado la señal de desconexión:\n%s", output), u.Window)
+		}
+		u.Window.Canvas().Focus(u.totpEntry)
 	}()
 }
 
