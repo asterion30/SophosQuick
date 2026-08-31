@@ -41,7 +41,7 @@ jobs:
         shell: pwsh
         run: |
           cd cmd/sophosquick
-          goversioninfo -manifest=../../build/windows/app.manifest ../../build/windows/versioninfo.json
+          goversioninfo
           cd ../..
 
       - name: Compilar Binario para Windows
