@@ -53,7 +53,7 @@ La interfaz está organizada en una tarjeta moderna y equilibrada:
 │  Secure VPN Launcher                             │
 ├──────────────────────────────────────────────────┤
 │  Perfil de Conexión:                             │
-│  [ vpn.vittal.com.ar                      ▼ ] 🔄 │
+│  [ vpn.**.com.ar                      ▼ ] 🔄 │
 ├──────────────────────────────────────────────────┤
 │  Código MFA / TOTP:                              │
 │  [ 123456                                      ] │
