@@ -4,7 +4,6 @@ package ui
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"strings"
 	"syscall"
@@ -82,6 +81,7 @@ const (
 
 	WM_CREATE         = 0x0001
 	WM_DESTROY        = 0x0002
+	WM_CLOSE          = 0x0010
 	WM_COMMAND        = 0x0111
 	WM_SETFONT        = 0x0030
 	WM_CTLCOLORSTATIC = 0x0138
