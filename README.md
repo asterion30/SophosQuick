@@ -48,23 +48,24 @@
 
 ## 🎨 Diseño y Experiencia de Usuario
 
-La interfaz está organizada en una tarjeta moderna y equilibrada:
+La interfaz está organizada en una tarjeta moderna, estilizada y equilibrada:
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  SophosQuick                 🟢 Desconectado     │
-│  Secure VPN Launcher                             │
+│  QuickConnect                ⚪ Desconectado     │
+│  for Sophos VPN                                  │
+│  👤 Usuario: rortega (Personalizado)             │
 ├──────────────────────────────────────────────────┤
 │  Perfil de Conexión:                             │
-│  [ vpn.company.com                         ▼ ] 🔄 │
+│  [ Mi-VPN-Corporativa                      ▼ ] 🔄 │
 ├──────────────────────────────────────────────────┤
-│  Código MFA / TOTP:                              │
+│  Código MFA / TOTP (6 dígitos):                  │
 │  [ 123456                                      ] │
 │                                                  │
 │  [ 🚀 Conectar VPN                             ] │
 │  [ 🛑 Desconectar                              ] │
 ├──────────────────────────────────────────────────┤
-│  [ 🔑 Configurar Contraseña Base               ] │
+│  [ 🔑 Configurar Credenciales / Usuario        ] │
 │             Listo para conectar                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -82,22 +83,26 @@ sophosquick/
 │   └── windows/
 │       ├── app.manifest         # Manifiesto Windows (DPI awareness, estilos modernos)
 │       ├── build.ps1            # Script de compilación para PowerShell
+│       ├── app.ico              # Icono nativo de la aplicación
 │       └── versioninfo.json     # Metadatos del binario (versión, autor, copyright)
 ├── cmd/
 │   └── sophosquick/
-│       └── main.go              # Punto de entrada principal
+│       ├── main.go              # Punto de entrada principal
+│       ├── app.ico              # Icono integrado
+│       ├── app.manifest         # Manifiesto Win32
+│       └── versioninfo.json     # Metadatos PE
 ├── internal/
 │   ├── config/
-│   │   └── config.go            # Manejo de preferencias y perfiles por defecto
+│   │   └── config.go            # Manejo de preferencias y perfiles
 │   ├── crypto/
-│   │   └── crypto.go            # Bóveda cifrada con Windows DPAPI
+│   │   ├── dpapi_windows.go     # Syscalls nativas a CryptProtectData (crypt32.dll)
+│   │   └── credentials.go       # Bóveda cifrada en %LOCALAPPDATA%\SophosVPN_Cred.bin
 │   ├── sophos/
-│   │   ├── client.go            # Cliente y lógica sccli.exe
-│   │   ├── exec_windows.go      # Flags de ejecución silenciosa en Windows
-│   │   └── exec_other.go        # Compatibilidad multiplataforma de desarrollo
+│   │   ├── client.go            # Integración segura con sccli.exe
+│   │   └── discovery.go         # Descubrimiento dinámico de perfiles
 │   └── ui/
-│       ├── app.go               # Interfaz gráfica y controladores de eventos
-│       └── theme.go             # Tema visual personalizado Dark Slate
+│       ├── app_windows.go       # GUI pura Win32 GDI/User32 (sin requerimiento OpenGL)
+│       └── ui.go                # Interfaz agnóstica de UI
 ├── go.mod                       # Módulo Go
 └── README.md                    # Documentación del proyecto
 ```
@@ -106,26 +111,28 @@ sophosquick/
 
 ## 🔒 Seguridad y Criptografía (DPAPI)
 
-1. **Sin Contraseñas en Texto Plano:** La contraseña de red/Active Directory nunca se guarda en archivos desprotegidos ni en variables de entorno fijas.
-2. **Atada a la Identidad del Usuario:** Emplea Windows **DPAPI (Data Protection API)** a través del formato seguro de PowerShell (`Export-Clixml`). La clave de descifrado está ligada a la sesión y hash del usuario en `%LOCALAPPDATA%\SophosVPN_Cred.xml`.
-3. **Imposible de Extraer por Terceros:** Ni administradores locales de la máquina ni otros perfiles pueden descifrar las credenciales almacenadas.
-4. **Limpieza en Memoria:** La concatenación de `ContraseñaBase + TOTP` solo existe durante la fracción de segundo requerida por `sccli.exe`.
+1. **Sin Contraseñas en Texto Plano:** La contraseña base corporativa nunca se guarda en archivos desprotegidos ni variables de entorno.
+2. **Atada a la Identidad del Usuario:** Emplea **Windows DPAPI (Data Protection API)** a través de llamadas nativas a `CryptProtectData` en `crypt32.dll`. La clave de descifrado está ligada a la sesión del usuario en `%LOCALAPPDATA%\SophosVPN_Cred.bin`.
+3. **Imposible de Extraer por Terceros:** Ni administradores de red ni otros perfiles del equipo pueden descifrar las credenciales almacenadas.
+4. **Sanitización en Memoria:** La concatenación `ContraseñaBase + TOTP` solo existe durante la fracción de segundo requerida por `sccli.exe` y las salidas en pantalla se filtran para no exponer claves.
 
 ---
 
 ## 🚀 Guía de Uso Rápido
 
-### 1. Configuración de Contraseña Base (Única vez)
-1. Ejecuta `sophosquick.exe`.
-2. Haz clic en el botón inferior: **`🔑 Configurar Contraseña Base`**.
-3. Ingresa tu contraseña de red/empresa (**SIN** el código MFA/TOTP) y presiona **Guardar**.
-4. Recibirás una confirmación visual de que la contraseña ha sido cifrada y almacenada.
+### 1. Configuración de Credenciales (Única vez)
+1. Ejecuta `quickconnect.exe`.
+2. Haz clic en el botón inferior: **`🔑 Configurar Credenciales / Usuario`**.
+3. Ingresa tu contraseña base corporativa (**SIN** el código MFA/TOTP).
+4. *(Opcional)* Si tu usuario de la VPN difiere del usuario de Windows logueado, marca la casilla **"Personalizar usuario"** y escribe tu usuario corporativo.
+5. Presiona **Guardar Credenciales**. Recibirás una confirmación visual de que han sido cifradas y almacenadas en la bóveda DPAPI.
 
 ### 2. Conexión Diaria con MFA / TOTP
-1. Abre `sophosquick.exe` (el cursor se ubicará de inmediato en el campo de código MFA).
-2. Abre tu app de autenticación (Google Authenticator / Microsoft Authenticator) en tu teléfono.
+1. Abre `quickconnect.exe` (el cursor se ubicará de inmediato en el campo de código MFA).
+2. Abre tu app de autenticación (Microsoft Authenticator / Google Authenticator) en tu teléfono.
 3. Escribe los **6 dígitos** del código TOTP y presiona <kbd>Enter</kbd> (o haz clic en **`🚀 Conectar VPN`**).
-4. El botón indicará `⌛ Conectando...` y el badge cambiará a verde cuando la orden sea procesada por Sophos Connect.
+4. El botón indicará `⌛ Conectando...` y el estado cambiará a verde cuando la orden sea procesada por Sophos Connect.
+5. Para desconectarte en cualquier momento, presiona **`🛑 Desconectar`**.
 
 ---
 
@@ -135,76 +142,70 @@ sophosquick/
 
 #### Prerrequisitos:
 * [Go 1.21+](https://go.dev/dl/)
-* Compilador C (opcional para Fyne: [TDM-GCC](https://jmeubank.github.io/tdm-gcc/) o `gcc` via MinGW64)
 * Herramienta de recursos de versión:
   ```powershell
-  go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+  go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.0
   ```
 
 #### Pasos de Compilación:
 ```powershell
 # 1. Clonar el repositorio
-git clone https://github.com/tu-organizacion/sophosquick.git
-cd sophosquick
+git clone https://github.com/asterion30/SophosQuick.git
+cd SophosQuick
 
 # 2. Descargar dependencias
 go mod tidy
 
 # 3. Compilar automáticamente con el script incluido
-.\build\windows\build.ps1 -Version "1.0.0"
+.\build\windows\build.ps1 -Version "1.0.4"
 
 # O compilar manualmente:
 cd cmd\sophosquick
-goversioninfo -manifest=../../build/windows/app.manifest ../../build/windows/versioninfo.json
-go build -ldflags="-H=windowsgui -s -w" -o ../../dist/sophosquick.exe .
-```
-
-### Compilación Cruzada desde Linux
-
-Para compilar el binario de Windows desde Linux usando `mingw-w64`:
-
-```bash
-# Instalar toolchain mingw en Debian/Ubuntu
-sudo apt update && sudo apt install -y gcc-mingw-w64
-
-# Compilar para Windows 64-bit
-CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 \
-  go build -ldflags="-H=windowsgui -s -w" -o dist/sophosquick.exe ./cmd/sophosquick
+goversioninfo
+go build -ldflags="-H=windowsgui -s -w" -o ../../dist/quickconnect.exe .
 ```
 
 ---
 
 ## 🤖 Automatización CI/CD (GitHub Actions)
 
-El repositorio incluye un flujo automatizado en [`.github/workflows/release.yml`](.github/workflows/release.yml).
+El repositorio incluye un pipeline automatizado y seguro en [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ### Cómo publicar una nueva versión:
 1. Asegúrate de que todos los cambios estén commiteados en `main`.
 2. Crea un tag de versión y súbelo a GitHub:
    ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag v1.0.4
+   git push origin v1.0.4
    ```
 3. GitHub Actions automáticamente:
-   * Compilará el binario nativo de Windows en un runner limpio de `windows-latest`.
-   * Incrustará el manifiesto de alta resolución y metadatos de versión.
-   * Calculará el hash **SHA-256**.
-   * Creará una nueva **GitHub Release** pública o privada adjuntando `sophosquick.exe` y `sophosquick.exe.sha256`.
+   * Compilará el binario nativo optimizado `quickconnect.exe`.
+   * Incrustará el manifiesto DPI-Aware v2, icono y metadatos de versión.
+   * Generará el paquete comprimido `quickconnect-windows-amd64.zip`.
+   * Calculará los hashes **SHA-256**.
+   * Publicará una nueva **GitHub Release** con todos los activos listos para descarga.
 
 ---
 
 ## 🛡️ Integración EDR y Antivirus
 
-| Característica | SophosQuick (Go Nativo) | Soluciones con PyInstaller / Python |
+| Característica | QuickConnect (Go Win32 Nativo) | Soluciones con Python / PyInstaller |
 | :--- | :--- | :--- |
 | **Arquitectura** | Binario PE x64 nativo directo | Auto-extractor en carpeta temporal (%TEMP%) |
 | **Falsos Positivos** | 🟢 Mínimos / Nulos | 🔴 Frecuentes bloqueos heurísticos |
-| **Whitelisting** | Hash SHA-256 único e inmutable | Difícil debido a DLLs dinámicas en runtime |
-| **Rendimiento** | Inicio instantáneo (<50ms) | 2 a 5 segundos de descompresión |
-| **Consola Oculta** | Subsystem Windows GUI nativo | Flags de proceso propensas a parpadeos |
+| **Distribución** | Paquete comprimido .ZIP con SHA-256 | Archivos ejecutables huérfanos |
+| **Rendimiento** | Inicio instantáneo (<30ms) | 2 a 5 segundos de descompresión |
+| **Requerimientos Gráficos** | 🟢 GDI puro (0% OpenGL/GPU) | 🔴 Requiere drivers acelerados |
+
+---
+
+## ⚖️ Aviso Legal / Trademark Disclaimer
+
+*Sophos* y *Sophos Connect* son marcas comerciales registradas propiedad de **Sophos Ltd.**  
+Este proyecto (**QuickConnect for Sophos VPN**) es una herramienta de software libre independiente y **no está afiliada, patrocinada, mantenida ni respaldada por Sophos Ltd.**
 
 ---
 
 ## 📄 Licencia
 
-Desarrollado para entornos corporativos y de infraestructura segura. Todos los derechos reservados.
+Distribuido bajo la Licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
