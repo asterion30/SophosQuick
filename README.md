@@ -1,11 +1,15 @@
-# SophosQuick 🛡️🚀
+# QuickConnect for Sophos VPN 🛡️🚀
 
 > Conector gráfico ultra-rápido, moderno y seguro para **Sophos Connect VPN** escrito en Go.
 
-![SophosQuick Dark Slate UI](https://img.shields.io/badge/UI-Dark%20Slate-0F172A?style=for-the-badge&logo=appveyor)
+![QuickConnect Dark Slate UI](https://img.shields.io/badge/UI-Dark%20Slate-0F172A?style=for-the-badge&logo=appveyor)
 ![Go Version](https://img.shields.io/badge/Go-1.21%2B-00ADD8?style=for-the-badge&logo=go)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue?style=for-the-badge&logo=windows)
-![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue?style=for-the-badge&logo=windows)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+> ⚖️ **Aviso Legal / Trademark Disclaimer:**  
+> *Sophos* y *Sophos Connect* son marcas comerciales registradas propiedad de **Sophos Ltd.**  
+> Este proyecto (**QuickConnect for Sophos VPN**) es una herramienta independiente de código abierto y **no está afiliada, patrocinada, mantenida ni respaldada por Sophos Ltd.**
 
 ---
 
@@ -16,19 +20,18 @@
 - [Estructura y Arquitectura](#-estructura-y-arquitectura)
 - [Seguridad y Criptografía (DPAPI)](#-seguridad-y-criptografía-dpapi)
 - [Guía de Uso Rápido](#-guía-de-uso-rápido)
-  - [1. Configuración de Contraseña Base (Única vez)](#1-configuración-de-contraseña-base-única-vez)
+  - [1. Configuración de Credenciales (Única vez)](#1-configuración-de-contraseña-base-única-vez)
   - [2. Conexión Diaria con MFA / TOTP](#2-conexión-diaria-con-mfa--totp)
 - [Compilación y Empaquetado](#-compilación-y-empaquetado)
-  - [Compilación en Windows](#compilación-en-windows)
-  - [Compilación Cruzada desde Linux](#compilación-cruzada-desde-linux)
 - [Automatización CI/CD (GitHub Actions)](#-automatización-cicd-github-actions)
 - [Integración EDR y Antivirus](#-integración-edr-y-antivirus)
+- [Aviso Legal](#-aviso-legal)
 
 ---
 
 ## 🌟 Descripción General
 
-**SophosQuick** es una aplicación de escritorio compacta desarrollada en **Go** que interactúa de manera nativa con el motor de línea de comandos de Sophos (`sccli.exe`). Diseñada para erradicar la fricción en la conexión diaria a redes corporativas protegidas con autenticación de dos factores (2FA / TOTP), combina una interfaz gráfica minimalista inspirada en Raycast/Linear con almacenamiento de credenciales de nivel empresarial.
+**QuickConnect for Sophos VPN** es una aplicación de escritorio nativa desarrollada en **Go** que interactúa con el motor de línea de comandos de Sophos (`sccli.exe`). Diseñada para erradicar la fricción en la conexión diaria a redes corporativas protegidas con autenticación de dos factores (2FA / TOTP), combina una interfaz gráfica minimalista con almacenamiento de credenciales de nivel empresarial mediante DPAPI de Windows.
 
 ---
 

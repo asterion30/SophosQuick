@@ -223,7 +223,7 @@ func (ui *WindowsUI) ShowAndRun() {
 	defer runtime.UnlockOSThread()
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
-	className := utf16Ptr("SophosQuickWindowClass")
+	className := utf16Ptr("QuickConnectWindowClass")
 
 	// Colors: Dark Slate theme (#0F172A = RGB(15, 23, 42))
 	ui.bgBrush, _, _ = procCreateSolidBrush.Call(uintptr(0x002A170F))   // 0x00BBGGRR
@@ -257,7 +257,7 @@ func (ui *WindowsUI) ShowAndRun() {
 	hwnd, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick - VPN Launcher"))),
+		uintptr(unsafe.Pointer(utf16Ptr("QuickConnect for Sophos VPN"))),
 		WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX|WS_VISIBLE,
 		uintptr(posX), uintptr(posY), uintptr(width), uintptr(height),
 		0, 0, hInstance, 0,
@@ -354,7 +354,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 	// 1. Header Title
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
-		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick"))),
+		uintptr(unsafe.Pointer(utf16Ptr("QuickConnect"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
 		55, 18, 180, 26, parent, 0, hInstance, 0,
 	)
@@ -363,7 +363,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 	// 2. Subtitle
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
-		uintptr(unsafe.Pointer(utf16Ptr("Secure VPN Launcher"))),
+		uintptr(unsafe.Pointer(utf16Ptr("for Sophos VPN"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
 		55, 46, 180, 16, parent, 0, hInstance, 0,
 	)

@@ -20,14 +20,14 @@
   },
   "StringFileInfo": {
     "Comments": "Conector Rápido y Seguro para Sophos VPN Connect",
-    "CompanyName": "SophosQuick Open Source Project",
-    "FileDescription": "SophosQuick - Conector Seguro Sophos Connect VPN",
-    "FileVersion": "1.0.0.0",
-    "InternalName": "sophosquick",
-    "LegalCopyright": "© 2026 SophosQuick Project. MIT License.",
-    "OriginalFilename": "sophosquick.exe",
-    "ProductName": "SophosQuick",
-    "ProductVersion": "1.0.0",
+    "CompanyName": "QuickConnect Open Source Project",
+    "FileDescription": "QuickConnect - Conector Seguro para Sophos VPN",
+    "FileVersion": "1.0.4.0",
+    "InternalName": "quickconnect",
+    "LegalCopyright": "© 2026 QuickConnect Project. MIT License. Sophos is a trademark of Sophos Ltd.",
+    "OriginalFilename": "quickconnect.exe",
+    "ProductName": "QuickConnect for Sophos VPN",
+    "ProductVersion": "1.0.4",
     "SpecialBuild": ""
   },
   "VarFileInfo": {
