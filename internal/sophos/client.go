@@ -193,7 +193,18 @@ func (c *Client) Connect(connName, username, fullPassword string) (string, error
 		return "", fmt.Errorf("error al ejecutar conexión: %v", err)
 	}
 
-	if out == "" {
+	if out != "" {
+		// Sanitize output to prevent leaking plain text password lines
+		var sanitizedLines []string
+		for _, line := range strings.Split(out, "\n") {
+			if strings.Contains(strings.ToLower(line), "password") {
+				sanitizedLines = append(sanitizedLines, "Password '********' will be used")
+			} else {
+				sanitizedLines = append(sanitizedLines, line)
+			}
+		}
+		out = strings.Join(sanitizedLines, "\n")
+	} else {
 		out = fmt.Sprintf("Comando de conexión enviado para '%s'.", connName)
 	}
 	return out, nil

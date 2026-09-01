@@ -59,21 +59,27 @@ const (
 	WS_TABSTOP      = 0x00010000
 	WS_BORDER       = 0x00800000
 
-	WS_EX_CLIENTEDGE  = 0x00000200
-	WS_EX_TOPMOST     = 0x00000008
+	WS_EX_CLIENTEDGE    = 0x00000200
+	WS_EX_TOPMOST       = 0x00000008
 	WS_EX_DLGMODALFRAME = 0x00000001
 
 	CBS_DROPDOWNLIST = 0x0003
 	CBS_HASSTRINGS   = 0x0200
 
-	ES_LEFT      = 0x0000
-	ES_CENTER    = 0x0001
-	ES_PASSWORD  = 0x0020
+	ES_LEFT        = 0x0000
+	ES_CENTER      = 0x0001
+	ES_PASSWORD    = 0x0020
 	ES_AUTOHSCROLL = 0x0080
-	ES_NUMBER    = 0x2000
+	ES_NUMBER      = 0x2000
 
 	BS_DEFPUSHBUTTON = 0x0001
 	BS_PUSHBUTTON    = 0x0000
+	BS_AUTOCHECKBOX  = 0x0003
+
+	BM_GETCHECK    = 0x00F0
+	BM_SETCHECK    = 0x00F1
+	BST_UNCHECKED  = 0x0000
+	BST_CHECKED    = 0x0001
 
 	SS_LEFT   = 0x0000
 	SS_CENTER = 0x0001
@@ -89,10 +95,10 @@ const (
 	WM_CTLCOLORBTN    = 0x0135
 	WM_CTLCOLORDLG    = 0x0136
 
-	CB_ADDSTRING = 0x0143
-	CB_SETCURSEL = 0x014E
-	CB_GETCURSEL = 0x0147
-	CB_GETLBTEXT = 0x0148
+	CB_ADDSTRING    = 0x0143
+	CB_SETCURSEL    = 0x014E
+	CB_GETCURSEL    = 0x0147
+	CB_GETLBTEXT    = 0x0148
 	CB_RESETCONTENT = 0x014B
 
 	MB_OK          = 0x00000000
@@ -113,10 +119,13 @@ const (
 	ID_BTN_CONFIG_PASS = 1006
 	ID_LBL_STATUS      = 1007
 	ID_LBL_FEEDBACK    = 1008
+	ID_LBL_USER_INFO   = 1009
 
-	ID_PASS_EDIT   = 2001
-	ID_PASS_SAVE   = 2002
-	ID_PASS_CANCEL = 2003
+	ID_CHECK_CUSTOM_USER = 2000
+	ID_USER_EDIT         = 2001
+	ID_PASS_EDIT         = 2002
+	ID_PASS_SAVE         = 2003
+	ID_PASS_CANCEL       = 2004
 )
 
 type WNDCLASSEXW struct {
@@ -155,13 +164,15 @@ type WindowsUI struct {
 	hBtnRef   uintptr
 	hStatus   uintptr
 	hFeedback uintptr
+	hUserInfo uintptr
 
-	bgBrush    uintptr
-	cardBrush  uintptr
-	fontTitle  uintptr
-	fontBody   uintptr
-	fontBold   uintptr
-	fontTotp   uintptr
+	bgBrush       uintptr
+	cardBrush     uintptr
+	fontTitle     uintptr
+	fontBody      uintptr
+	fontBold      uintptr
+	fontLargeBold uintptr
+	fontTotp      uintptr
 
 	isBusy bool
 }
@@ -182,6 +193,27 @@ func utf16Ptr(s string) *uint16 {
 	return p
 }
 
+func (ui *WindowsUI) getEffectiveUsername() string {
+	if strings.TrimSpace(ui.cfg.Username) != "" {
+		return strings.TrimSpace(ui.cfg.Username)
+	}
+	return config.GetCurrentUsername()
+}
+
+func (ui *WindowsUI) updateUserInfoLabel() {
+	if ui.hUserInfo == 0 {
+		return
+	}
+	effUser := ui.getEffectiveUsername()
+	var userText string
+	if strings.TrimSpace(ui.cfg.Username) != "" {
+		userText = fmt.Sprintf("👤 Usuario activo: %s (Personalizado)", effUser)
+	} else {
+		userText = fmt.Sprintf("👤 Usuario activo: %s (Windows)", effUser)
+	}
+	procSetWindowTextW.Call(ui.hUserInfo, uintptr(unsafe.Pointer(utf16Ptr(userText))))
+}
+
 func (ui *WindowsUI) ShowAndRun() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -194,10 +226,11 @@ func (ui *WindowsUI) ShowAndRun() {
 	ui.cardBrush, _, _ = procCreateSolidBrush.Call(uintptr(0x003B291E)) // #1E293B
 
 	// Fonts (Segoe UI)
-	ui.fontTitle = createFont("Segoe UI", 20, 700)
+	ui.fontTitle = createFont("Segoe UI", 24, 700)
+	ui.fontLargeBold = createFont("Segoe UI", 16, 700)
 	ui.fontBody = createFont("Segoe UI", 14, 400)
 	ui.fontBold = createFont("Segoe UI", 14, 600)
-	ui.fontTotp = createFont("Consolas", 22, 700)
+	ui.fontTotp = createFont("Consolas", 26, 700)
 
 	var wc WNDCLASSEXW
 	wc.cbSize = uint32(unsafe.Sizeof(wc))
@@ -208,8 +241,9 @@ func (ui *WindowsUI) ShowAndRun() {
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	width := int32(350)
-	height := int32(410)
+	// Window Dimensions: 480 × 510 px
+	width := int32(480)
+	height := int32(510)
 
 	screenWidth, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 	screenHeight, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
@@ -219,7 +253,7 @@ func (ui *WindowsUI) ShowAndRun() {
 	hwnd, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick - VPN Launcher"))),
+		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick - Secure VPN Launcher"))),
 		WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX|WS_VISIBLE,
 		uintptr(posX), uintptr(posY), uintptr(width), uintptr(height),
 		0, 0, hInstance, 0,
@@ -280,7 +314,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam uintptr, lParam uintptr) uintptr {
 			case ID_BTN_REFRESH:
 				ui.refreshProfiles()
 			case ID_BTN_CONFIG_PASS:
-				ui.showPasswordDialog()
+				ui.showCredentialsDialog()
 			}
 		}
 		return 0
@@ -312,12 +346,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam uintptr, lParam uintptr) uintptr {
 func (ui *WindowsUI) buildControls(parent uintptr) {
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 
+	// Layout Width = 480, Left Margin = 30, Control Width = 420
 	// 1. Header Title
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		20, 15, 180, 26, parent, 0, hInstance, 0,
+		30, 20, 230, 30, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hTitle, WM_SETFONT, ui.fontTitle, 1)
 
@@ -326,7 +361,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Secure VPN Launcher"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		20, 42, 180, 18, parent, 0, hInstance, 0,
+		30, 52, 230, 18, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hSub, WM_SETFONT, ui.fontBody, 1)
 
@@ -335,91 +370,101 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("⚪ Desconectado"))),
 		WS_CHILD|WS_VISIBLE|SS_RIGHT,
-		200, 18, 120, 20, parent, uintptr(ID_LBL_STATUS), hInstance, 0,
+		270, 25, 180, 24, parent, uintptr(ID_LBL_STATUS), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hStatus, WM_SETFONT, ui.fontBold, 1)
 
-	// 4. Label: Perfil de Conexión
+	// 4. User Info Label
+	ui.hUserInfo, _, _ = procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
+		0,
+		WS_CHILD|WS_VISIBLE|SS_LEFT,
+		30, 80, 420, 20, parent, uintptr(ID_LBL_USER_INFO), hInstance, 0,
+	)
+	procSendMessageW.Call(ui.hUserInfo, WM_SETFONT, ui.fontBody, 1)
+	ui.updateUserInfoLabel()
+
+	// 5. Label: Perfil de Conexión
 	hLblProfile, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Perfil de Conexión:"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		20, 72, 290, 18, parent, 0, hInstance, 0,
+		30, 110, 420, 18, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hLblProfile, WM_SETFONT, ui.fontBold, 1)
 
-	// 5. ComboBox Profile
+	// 6. ComboBox Profile
 	ui.hCombo, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("COMBOBOX"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|CBS_DROPDOWNLIST|CBS_HASSTRINGS,
-		20, 93, 255, 200, parent, uintptr(ID_COMBO_PROFILE), hInstance, 0,
+		30, 132, 368, 220, parent, uintptr(ID_COMBO_PROFILE), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hCombo, WM_SETFONT, ui.fontBody, 1)
 
-	// 6. Refresh Button
+	// 7. Refresh Button (🔄)
 	ui.hBtnRef, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("🔄"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		280, 92, 35, 25, parent, uintptr(ID_BTN_REFRESH), hInstance, 0,
+		408, 131, 42, 28, parent, uintptr(ID_BTN_REFRESH), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hBtnRef, WM_SETFONT, ui.fontBody, 1)
 
 	// Populate profiles
 	ui.refreshProfiles()
 
-	// 7. Label: Código MFA / TOTP
+	// 8. Label: Código MFA / TOTP
 	hLblTotp, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Código MFA / TOTP (6 dígitos):"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		20, 130, 290, 18, parent, 0, hInstance, 0,
+		30, 175, 420, 18, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hLblTotp, WM_SETFONT, ui.fontBold, 1)
 
-	// 8. Edit Box TOTP
+	// 9. Edit Box TOTP
 	ui.hTotp, _, _ = procCreateWindowExW.Call(
 		WS_EX_CLIENTEDGE, uintptr(unsafe.Pointer(utf16Ptr("EDIT"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_CENTER|ES_NUMBER|ES_AUTOHSCROLL,
-		20, 150, 295, 34, parent, uintptr(ID_EDIT_TOTP), hInstance, 0,
+		30, 196, 420, 42, parent, uintptr(ID_EDIT_TOTP), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hTotp, WM_SETFONT, ui.fontTotp, 1)
 
-	// 9. Primary Connect Button
+	// 10. Primary Connect Button
 	ui.hBtnConn, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("🚀 Conectar VPN"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_DEFPUSHBUTTON,
-		20, 198, 295, 38, parent, uintptr(ID_BTN_CONNECT), hInstance, 0,
+		30, 255, 420, 48, parent, uintptr(ID_BTN_CONNECT), hInstance, 0,
 	)
-	procSendMessageW.Call(ui.hBtnConn, WM_SETFONT, ui.fontBold, 1)
+	procSendMessageW.Call(ui.hBtnConn, WM_SETFONT, ui.fontLargeBold, 1)
 
-	// 10. Disconnect Button
+	// 11. Disconnect Button
 	ui.hBtnDisc, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("🛑 Desconectar"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		20, 244, 295, 30, parent, uintptr(ID_BTN_DISCONNECT), hInstance, 0,
+		30, 314, 420, 38, parent, uintptr(ID_BTN_DISCONNECT), hInstance, 0,
 	)
-	procSendMessageW.Call(ui.hBtnDisc, WM_SETFONT, ui.fontBody, 1)
+	procSendMessageW.Call(ui.hBtnDisc, WM_SETFONT, ui.fontBold, 1)
 
-	// 11. Config Password Button
+	// 12. Config Credentials & User Button
 	ui.hBtnPass, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
-		uintptr(unsafe.Pointer(utf16Ptr("🔑 Configurar Contraseña Base"))),
+		uintptr(unsafe.Pointer(utf16Ptr("🔑 Configurar Credenciales / Usuario"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		20, 282, 295, 28, parent, uintptr(ID_BTN_CONFIG_PASS), hInstance, 0,
+		30, 364, 420, 36, parent, uintptr(ID_BTN_CONFIG_PASS), hInstance, 0,
 	)
-	procSendMessageW.Call(ui.hBtnPass, WM_SETFONT, ui.fontBody, 1)
+	procSendMessageW.Call(ui.hBtnPass, WM_SETFONT, ui.fontBold, 1)
 
-	// 12. Feedback Message Label
+	// 13. Feedback Message Label
 	ui.hFeedback, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Listo para conectar"))),
 		WS_CHILD|WS_VISIBLE|SS_CENTER,
-		20, 322, 295, 20, parent, uintptr(ID_LBL_FEEDBACK), hInstance, 0,
+		30, 420, 420, 24, parent, uintptr(ID_LBL_FEEDBACK), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hFeedback, WM_SETFONT, ui.fontBody, 1)
 
@@ -503,7 +548,7 @@ func (ui *WindowsUI) onConnect() {
 			uintptr(unsafe.Pointer(utf16Ptr("Configuración Requerida"))),
 			MB_OK|MB_ICONWARNING,
 		)
-		ui.showPasswordDialog()
+		ui.showCredentialsDialog()
 		return
 	}
 
@@ -518,10 +563,7 @@ func (ui *WindowsUI) onConnect() {
 	}
 
 	selectedProfile := ui.getSelectedProfile()
-	username := ui.cfg.Username
-	if username == "" {
-		username = config.GetCurrentUsername()
-	}
+	username := ui.getEffectiveUsername()
 
 	fullPassword := basePass + totp
 
@@ -530,7 +572,7 @@ func (ui *WindowsUI) onConnect() {
 	ui.setFeedback(fmt.Sprintf("Conectando a %s...", selectedProfile))
 
 	go func() {
-		output, err := ui.client.Connect(selectedProfile, username, fullPassword)
+		_, err := ui.client.Connect(selectedProfile, username, fullPassword)
 		time.Sleep(400 * time.Millisecond)
 
 		ui.setBusy(false)
@@ -538,7 +580,7 @@ func (ui *WindowsUI) onConnect() {
 			ui.setStatus("⚪ Desconectado")
 			ui.setFeedback("❌ Error en conexión")
 			procMessageBoxW.Call(ui.hwnd,
-				uintptr(unsafe.Pointer(utf16Ptr(fmt.Sprintf("Fallo al conectar:\n%v", err)))),
+				uintptr(unsafe.Pointer(utf16Ptr(fmt.Sprintf("Fallo al conectar con el perfil '%s':\n%v", selectedProfile, err)))),
 				uintptr(unsafe.Pointer(utf16Ptr("Error al Conectar"))),
 				MB_OK|MB_ICONERROR,
 			)
@@ -547,8 +589,11 @@ func (ui *WindowsUI) onConnect() {
 			ui.setStatus("🟢 Conectado")
 			ui.setFeedback("✅ Conexión iniciada con éxito")
 			procSetWindowTextW.Call(ui.hTotp, uintptr(unsafe.Pointer(utf16Ptr(""))))
+			
+			// Sanitized professional popup message without displaying passwords
+			successMsg := fmt.Sprintf("Se ha enviado la orden de conexión a Sophos Connect:\n\nPerfil: %s\nUsuario: %s\n\nVerifica el estado de la sesión en el agente de Sophos en la barra de tareas.", selectedProfile, username)
 			procMessageBoxW.Call(ui.hwnd,
-				uintptr(unsafe.Pointer(utf16Ptr(fmt.Sprintf("Se ha enviado la orden de conexión a Sophos Connect:\n%s\n\nVerifica el agente de Sophos en la barra de tareas.", output)))),
+				uintptr(unsafe.Pointer(utf16Ptr(successMsg))),
 				uintptr(unsafe.Pointer(utf16Ptr("VPN en Proceso"))),
 				MB_OK|MB_ICONINFO,
 			)
@@ -562,7 +607,7 @@ func (ui *WindowsUI) onDisconnect() {
 	ui.setFeedback("Desconectando...")
 
 	go func() {
-		output, err := ui.client.Disconnect(selectedProfile)
+		_, err := ui.client.Disconnect(selectedProfile)
 		time.Sleep(300 * time.Millisecond)
 
 		ui.setBusy(false)
@@ -570,14 +615,15 @@ func (ui *WindowsUI) onDisconnect() {
 		if err != nil {
 			ui.setFeedback("❌ Error al desconectar")
 			procMessageBoxW.Call(ui.hwnd,
-				uintptr(unsafe.Pointer(utf16Ptr(fmt.Sprintf("Error al desconectar:\n%v", err)))),
+				uintptr(unsafe.Pointer(utf16Ptr(fmt.Sprintf("Error al desconectar del perfil '%s':\n%v", selectedProfile, err)))),
 				uintptr(unsafe.Pointer(utf16Ptr("Error de Desconexión"))),
 				MB_OK|MB_ICONERROR,
 			)
 		} else {
 			ui.setFeedback("Desconectado")
+			disconnectMsg := fmt.Sprintf("Se ha enviado la señal de desconexión para el perfil:\n'%s'", selectedProfile)
 			procMessageBoxW.Call(ui.hwnd,
-				uintptr(unsafe.Pointer(utf16Ptr(fmt.Sprintf("Se ha enviado la señal de desconexión:\n%s", output)))),
+				uintptr(unsafe.Pointer(utf16Ptr(disconnectMsg))),
 				uintptr(unsafe.Pointer(utf16Ptr("VPN Desconectada"))),
 				MB_OK|MB_ICONINFO,
 			)
@@ -586,21 +632,27 @@ func (ui *WindowsUI) onDisconnect() {
 	}()
 }
 
-func (ui *WindowsUI) showPasswordDialog() {
+var (
+	hDlgUserEdit  uintptr
+	hDlgCheckUser uintptr
+	hDlgPassEdit  uintptr
+)
+
+func (ui *WindowsUI) showCredentialsDialog() {
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
-	dlgClass := utf16Ptr("SophosQuickPasswordDialogClass")
+	dlgClass := utf16Ptr("SophosQuickCredentialsDialogClass")
 
 	var wc WNDCLASSEXW
 	wc.cbSize = uint32(unsafe.Sizeof(wc))
-	wc.lpfnWndProc = syscall.NewCallback(passDlgWndProc)
+	wc.lpfnWndProc = syscall.NewCallback(credDlgWndProc)
 	wc.hInstance = hInstance
 	wc.hbrBackground = ui.bgBrush
 	wc.lpszClassName = dlgClass
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	width := int32(320)
-	height := int32(180)
+	width := int32(400)
+	height := int32(310)
 
 	screenWidth, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 	screenHeight, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
@@ -610,72 +662,166 @@ func (ui *WindowsUI) showPasswordDialog() {
 	hDlg, _, _ := procCreateWindowExW.Call(
 		WS_EX_DLGMODALFRAME|WS_EX_TOPMOST,
 		uintptr(unsafe.Pointer(dlgClass)),
-		uintptr(unsafe.Pointer(utf16Ptr("Configurar Contraseña Base"))),
+		uintptr(unsafe.Pointer(utf16Ptr("Configurar Credenciales y Usuario"))),
 		WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_VISIBLE,
 		uintptr(posX), uintptr(posY), uintptr(width), uintptr(height),
 		ui.hwnd, 0, hInstance, 0,
 	)
 
-	// Label
-	hLbl, _, _ := procCreateWindowExW.Call(
-		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
-		uintptr(unsafe.Pointer(utf16Ptr("Ingresa tu contraseña corporativa (SIN TOTP):"))),
-		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		15, 15, 275, 18, hDlg, 0, hInstance, 0,
+	// 1. Checkbox: Personalizar usuario
+	hDlgCheckUser, _, _ = procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
+		uintptr(unsafe.Pointer(utf16Ptr("Personalizar usuario (distinto al de Windows)"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX,
+		20, 15, 350, 22, hDlg, uintptr(ID_CHECK_CUSTOM_USER), hInstance, 0,
 	)
-	procSendMessageW.Call(hLbl, WM_SETFONT, ui.fontBody, 1)
+	procSendMessageW.Call(hDlgCheckUser, WM_SETFONT, ui.fontBold, 1)
 
-	// Password edit
-	hEdit, _, _ := procCreateWindowExW.Call(
+	// 2. Label Usuario
+	hLblUser, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
+		uintptr(unsafe.Pointer(utf16Ptr("Nombre de Usuario VPN:"))),
+		WS_CHILD|WS_VISIBLE|SS_LEFT,
+		20, 45, 350, 18, hDlg, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hLblUser, WM_SETFONT, ui.fontBody, 1)
+
+	// 3. Edit Usuario
+	currUser := ui.cfg.Username
+	isCustom := strings.TrimSpace(currUser) != ""
+	if !isCustom {
+		currUser = config.GetCurrentUsername()
+	}
+
+	hDlgUserEdit, _, _ = procCreateWindowExW.Call(
+		WS_EX_CLIENTEDGE, uintptr(unsafe.Pointer(utf16Ptr("EDIT"))),
+		uintptr(unsafe.Pointer(utf16Ptr(currUser))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_LEFT|ES_AUTOHSCROLL,
+		20, 68, 345, 28, hDlg, uintptr(ID_USER_EDIT), hInstance, 0,
+	)
+	procSendMessageW.Call(hDlgUserEdit, WM_SETFONT, ui.fontBody, 1)
+
+	if isCustom {
+		procSendMessageW.Call(hDlgCheckUser, BM_SETCHECK, BST_CHECKED, 0)
+		procEnableWindow.Call(hDlgUserEdit, 1)
+	} else {
+		procSendMessageW.Call(hDlgCheckUser, BM_SETCHECK, BST_UNCHECKED, 0)
+		procEnableWindow.Call(hDlgUserEdit, 0)
+	}
+
+	// 4. Label Password
+	hLblPass, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
+		uintptr(unsafe.Pointer(utf16Ptr("Contraseña Base corporativa (SIN TOTP):"))),
+		WS_CHILD|WS_VISIBLE|SS_LEFT,
+		20, 110, 350, 18, hDlg, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hLblPass, WM_SETFONT, ui.fontBody, 1)
+
+	// 5. Edit Password
+	hDlgPassEdit, _, _ = procCreateWindowExW.Call(
 		WS_EX_CLIENTEDGE, uintptr(unsafe.Pointer(utf16Ptr("EDIT"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_PASSWORD|ES_AUTOHSCROLL,
-		15, 38, 275, 26, hDlg, uintptr(ID_PASS_EDIT), hInstance, 0,
+		20, 132, 345, 28, hDlg, uintptr(ID_PASS_EDIT), hInstance, 0,
 	)
-	procSendMessageW.Call(hEdit, WM_SETFONT, ui.fontBody, 1)
+	procSendMessageW.Call(hDlgPassEdit, WM_SETFONT, ui.fontBody, 1)
 
-	// Save Button
+	// 6. Note Info Label
+	hLblNote, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
+		uintptr(unsafe.Pointer(utf16Ptr("ℹ️ Tu contraseña se cifra con DPAPI de Windows."))),
+		WS_CHILD|WS_VISIBLE|SS_LEFT,
+		20, 170, 345, 18, hDlg, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hLblNote, WM_SETFONT, ui.fontBody, 1)
+
+	// 7. Save Button
 	hSave, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
-		uintptr(unsafe.Pointer(utf16Ptr("Guardar"))),
+		uintptr(unsafe.Pointer(utf16Ptr("Guardar Credenciales"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_DEFPUSHBUTTON,
-		15, 80, 130, 32, hDlg, uintptr(ID_PASS_SAVE), hInstance, 0,
+		20, 205, 170, 38, hDlg, uintptr(ID_PASS_SAVE), hInstance, 0,
 	)
 	procSendMessageW.Call(hSave, WM_SETFONT, ui.fontBold, 1)
 
-	// Cancel Button
+	// 8. Cancel Button
 	hCancel, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Cancelar"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		160, 80, 130, 32, hDlg, uintptr(ID_PASS_CANCEL), hInstance, 0,
+		200, 205, 165, 38, hDlg, uintptr(ID_PASS_CANCEL), hInstance, 0,
 	)
 	procSendMessageW.Call(hCancel, WM_SETFONT, ui.fontBody, 1)
 
-	procSetFocus.Call(hEdit)
+	procSetFocus.Call(hDlgPassEdit)
 }
 
-func passDlgWndProc(hwnd uintptr, msg uint32, wParam uintptr, lParam uintptr) uintptr {
+func credDlgWndProc(hwnd uintptr, msg uint32, wParam uintptr, lParam uintptr) uintptr {
 	ui := globalUI
 
 	switch msg {
 	case WM_COMMAND:
 		id := uint16(wParam & 0xFFFF)
+		code := uint16((wParam >> 16) & 0xFFFF)
+
+		if id == ID_CHECK_CUSTOM_USER && code == 0 {
+			checkState, _, _ := procSendMessageW.Call(hDlgCheckUser, BM_GETCHECK, 0, 0)
+			if checkState == BST_CHECKED {
+				procEnableWindow.Call(hDlgUserEdit, 1)
+				procSetFocus.Call(hDlgUserEdit)
+			} else {
+				procEnableWindow.Call(hDlgUserEdit, 0)
+				procSetWindowTextW.Call(hDlgUserEdit, uintptr(unsafe.Pointer(utf16Ptr(config.GetCurrentUsername()))))
+			}
+			return 0
+		}
+
 		switch id {
 		case ID_PASS_SAVE:
-			hEdit, _, _ := user32.NewProc("GetDlgItem").Call(hwnd, uintptr(ID_PASS_EDIT))
-			len, _, _ := procGetWindowTextLengthW.Call(hEdit)
-			if len == 0 {
+			// Read Username
+			checkState, _, _ := procSendMessageW.Call(hDlgCheckUser, BM_GETCHECK, 0, 0)
+			if checkState == BST_CHECKED {
+				userLen, _, _ := procGetWindowTextLengthW.Call(hDlgUserEdit)
+				if userLen > 0 {
+					uBuf := make([]uint16, userLen+1)
+					procGetWindowTextW.Call(hDlgUserEdit, uintptr(unsafe.Pointer(&uBuf[0])), userLen+1)
+					ui.cfg.Username = strings.TrimSpace(syscall.UTF16ToString(uBuf))
+				} else {
+					ui.cfg.Username = ""
+				}
+			} else {
+				ui.cfg.Username = ""
+			}
+			_ = config.SaveConfig(ui.cfg)
+			ui.updateUserInfoLabel()
+
+			// Read Password
+			passLen, _, _ := procGetWindowTextLengthW.Call(hDlgPassEdit)
+			if passLen == 0 {
+				if !crypto.HasSavedCredential() {
+					procMessageBoxW.Call(hwnd,
+						uintptr(unsafe.Pointer(utf16Ptr("Debes ingresar una contraseña corporativa base."))),
+						uintptr(unsafe.Pointer(utf16Ptr("Validación"))),
+						MB_OK|MB_ICONWARNING,
+					)
+					procSetFocus.Call(hDlgPassEdit)
+					return 0
+				}
+				// If user only changed username and left password empty, keep existing password
+				ui.setFeedback("👤 Configuración de usuario actualizada")
 				procMessageBoxW.Call(hwnd,
-					uintptr(unsafe.Pointer(utf16Ptr("La contraseña no puede estar vacía."))),
-					uintptr(unsafe.Pointer(utf16Ptr("Validación"))),
-					MB_OK|MB_ICONWARNING,
+					uintptr(unsafe.Pointer(utf16Ptr("Configuración actualizada correctamente."))),
+					uintptr(unsafe.Pointer(utf16Ptr("Éxito"))),
+					MB_OK|MB_ICONINFO,
 				)
+				procDestroyWindow.Call(hwnd)
 				return 0
 			}
-			buf := make([]uint16, len+1)
-			procGetWindowTextW.Call(hEdit, uintptr(unsafe.Pointer(&buf[0])), len+1)
-			pass := strings.TrimSpace(syscall.UTF16ToString(buf))
+
+			pBuf := make([]uint16, passLen+1)
+			procGetWindowTextW.Call(hDlgPassEdit, uintptr(unsafe.Pointer(&pBuf[0])), passLen+1)
+			pass := strings.TrimSpace(syscall.UTF16ToString(pBuf))
 
 			err := crypto.SavePassword(pass)
 			if err != nil {
@@ -685,9 +831,9 @@ func passDlgWndProc(hwnd uintptr, msg uint32, wParam uintptr, lParam uintptr) ui
 					MB_OK|MB_ICONERROR,
 				)
 			} else {
-				ui.setFeedback("🔑 Contraseña guardada correctamente")
+				ui.setFeedback("🔑 Credenciales guardadas correctamente")
 				procMessageBoxW.Call(hwnd,
-					uintptr(unsafe.Pointer(utf16Ptr("¡Contraseña encriptada y guardada con éxito en la bóveda DPAPI del sistema!"))),
+					uintptr(unsafe.Pointer(utf16Ptr("¡Credenciales guardadas y cifradas con éxito en la bóveda DPAPI!"))),
 					uintptr(unsafe.Pointer(utf16Ptr("Éxito"))),
 					MB_OK|MB_ICONINFO,
 				)

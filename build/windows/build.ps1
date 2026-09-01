@@ -19,7 +19,7 @@ if (-not (Test-Path $DistDir)) {
 if (Get-Command goversioninfo -ErrorAction SilentlyContinue) {
     Write-Host "[1/3] Generando recursos de versión (.syso)..." -ForegroundColor Yellow
     Push-Location (Join-Path $PSScriptRoot "..\..\cmd\sophosquick")
-    goversioninfo -manifest=../../build/windows/app.manifest ../../build/windows/versioninfo.json
+    goversioninfo
     Pop-Location
 } else {
     Write-Host "[1/3] Aviso: 'goversioninfo' no detectado. Para incrustar icono y manifest, ejecuta: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest" -ForegroundColor DarkGray

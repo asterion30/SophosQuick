@@ -36,6 +36,6 @@
       "CharsetID": "04B0"
     }
   },
-  "IconPath": "",
+  "IconPath": "app.ico",
   "ManifestPath": "app.manifest"
 }
