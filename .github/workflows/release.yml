@@ -33,9 +33,9 @@ jobs:
         run: |
           go mod tidy
 
-      - name: Instalar Herramienta de Metadatos (goversioninfo)
+      - name: Instalar Herramienta de Metadatos (goversioninfo v1.4.0)
         run: |
-          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.0
 
       - name: Generar Recursos de Manifiesto (.syso)
         shell: pwsh
@@ -45,11 +45,14 @@ jobs:
           cd ../..
 
       - name: Compilar Binario para Windows
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         shell: pwsh
         run: |
-          $Tag = "${{ github.ref_name }}"
+          $Tag = $env:REF_NAME
           if (-not $Tag -or $Tag -eq "main") {
-            $Tag = "${{ github.event.inputs.version }}"
+            $Tag = $env:INPUT_VERSION
           }
           if (-not $Tag) { $Tag = "v1.0.0" }
 
