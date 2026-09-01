@@ -60,21 +60,17 @@ jobs:
           
           # Compilar binario nativo de Windows optimizado
           go build -ldflags="-H=windowsgui -s -w -X 'main.Version=$Tag'" -o dist/quickconnect.exe ./cmd/sophosquick
-          Copy-Item dist/quickconnect.exe dist/sophosquick.exe -Force
 
       - name: Generar Paquetes ZIP y Checksums SHA-256
         shell: pwsh
         run: |
           cd dist
           Compress-Archive -Path quickconnect.exe, ..\README.md, ..\LICENSE -DestinationPath quickconnect-windows-amd64.zip -Force
-          Copy-Item quickconnect-windows-amd64.zip sophosquick-windows-amd64.zip -Force
 
           $HashExe = (Get-FileHash -Path quickconnect.exe -Algorithm SHA256).Hash
           $HashZip = (Get-FileHash -Path quickconnect-windows-amd64.zip -Algorithm SHA256).Hash
           "$HashExe  quickconnect.exe" | Out-File -Encoding ascii -FilePath quickconnect.exe.sha256
           "$HashZip  quickconnect-windows-amd64.zip" | Out-File -Encoding ascii -FilePath quickconnect-windows-amd64.zip.sha256
-          "$HashExe  sophosquick.exe" | Out-File -Encoding ascii -FilePath sophosquick.exe.sha256
-          "$HashZip  sophosquick-windows-amd64.zip" | Out-File -Encoding ascii -FilePath sophosquick-windows-amd64.zip.sha256
           cd ..
 
       - name: Publicar Release en GitHub
@@ -90,5 +86,3 @@ jobs:
             dist/quickconnect-windows-amd64.zip
             dist/quickconnect.exe.sha256
             dist/quickconnect-windows-amd64.zip.sha256
-            dist/sophosquick.exe
-            dist/sophosquick-windows-amd64.zip
