@@ -76,10 +76,10 @@ const (
 	BS_PUSHBUTTON    = 0x0000
 	BS_AUTOCHECKBOX  = 0x0003
 
-	BM_GETCHECK    = 0x00F0
-	BM_SETCHECK    = 0x00F1
-	BST_UNCHECKED  = 0x0000
-	BST_CHECKED    = 0x0001
+	BM_GETCHECK   = 0x00F0
+	BM_SETCHECK   = 0x00F1
+	BST_UNCHECKED = 0x0000
+	BST_CHECKED   = 0x0001
 
 	SS_LEFT   = 0x0000
 	SS_CENTER = 0x0001
@@ -109,6 +109,8 @@ const (
 	SM_CXSCREEN = 0
 	SM_CYSCREEN = 1
 	TRANSPARENT = 1
+
+	NoConnectionsPlaceholder = "⚠️ (Sin conexiones configuradas)"
 
 	// Control IDs
 	ID_COMBO_PROFILE   = 1001
@@ -166,6 +168,8 @@ type WindowsUI struct {
 	hFeedback uintptr
 	hUserInfo uintptr
 
+	hasConnections bool
+
 	bgBrush       uintptr
 	cardBrush     uintptr
 	fontTitle     uintptr
@@ -207,9 +211,9 @@ func (ui *WindowsUI) updateUserInfoLabel() {
 	effUser := ui.getEffectiveUsername()
 	var userText string
 	if strings.TrimSpace(ui.cfg.Username) != "" {
-		userText = fmt.Sprintf("👤 Usuario activo: %s (Personalizado)", effUser)
+		userText = fmt.Sprintf("👤 Usuario: %s (Personalizado)", effUser)
 	} else {
-		userText = fmt.Sprintf("👤 Usuario activo: %s (Windows)", effUser)
+		userText = fmt.Sprintf("👤 Usuario: %s (Windows)", effUser)
 	}
 	procSetWindowTextW.Call(ui.hUserInfo, uintptr(unsafe.Pointer(utf16Ptr(userText))))
 }
@@ -226,11 +230,11 @@ func (ui *WindowsUI) ShowAndRun() {
 	ui.cardBrush, _, _ = procCreateSolidBrush.Call(uintptr(0x003B291E)) // #1E293B
 
 	// Fonts (Segoe UI)
-	ui.fontTitle = createFont("Segoe UI", 24, 700)
-	ui.fontLargeBold = createFont("Segoe UI", 16, 700)
-	ui.fontBody = createFont("Segoe UI", 14, 400)
-	ui.fontBold = createFont("Segoe UI", 14, 600)
-	ui.fontTotp = createFont("Consolas", 26, 700)
+	ui.fontTitle = createFont("Segoe UI", 20, 700)
+	ui.fontLargeBold = createFont("Segoe UI", 15, 700)
+	ui.fontBody = createFont("Segoe UI", 13, 400)
+	ui.fontBold = createFont("Segoe UI", 13, 600)
+	ui.fontTotp = createFont("Consolas", 22, 700)
 
 	var wc WNDCLASSEXW
 	wc.cbSize = uint32(unsafe.Sizeof(wc))
@@ -241,9 +245,9 @@ func (ui *WindowsUI) ShowAndRun() {
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	// Window Dimensions: 480 × 510 px
-	width := int32(480)
-	height := int32(510)
+	// Window Dimensions: 400 × 470 px (Alternativa B - Centrada con márgenes amplios)
+	width := int32(400)
+	height := int32(470)
 
 	screenWidth, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 	screenHeight, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
@@ -253,7 +257,7 @@ func (ui *WindowsUI) ShowAndRun() {
 	hwnd, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick - Secure VPN Launcher"))),
+		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick - VPN Launcher"))),
 		WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX|WS_VISIBLE,
 		uintptr(posX), uintptr(posY), uintptr(width), uintptr(height),
 		0, 0, hInstance, 0,
@@ -346,13 +350,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam uintptr, lParam uintptr) uintptr {
 func (ui *WindowsUI) buildControls(parent uintptr) {
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-	// Layout Width = 480, Left Margin = 30, Control Width = 420
+	// Alternativa B: Total Width = 400, Margin = 55, Content Width = 290
 	// 1. Header Title
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("SophosQuick"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		30, 20, 230, 30, parent, 0, hInstance, 0,
+		55, 18, 180, 26, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hTitle, WM_SETFONT, ui.fontTitle, 1)
 
@@ -361,7 +365,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Secure VPN Launcher"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		30, 52, 230, 18, parent, 0, hInstance, 0,
+		55, 46, 180, 16, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hSub, WM_SETFONT, ui.fontBody, 1)
 
@@ -370,7 +374,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("⚪ Desconectado"))),
 		WS_CHILD|WS_VISIBLE|SS_RIGHT,
-		270, 25, 180, 24, parent, uintptr(ID_LBL_STATUS), hInstance, 0,
+		235, 22, 110, 20, parent, uintptr(ID_LBL_STATUS), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hStatus, WM_SETFONT, ui.fontBold, 1)
 
@@ -379,7 +383,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		0,
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		30, 80, 420, 20, parent, uintptr(ID_LBL_USER_INFO), hInstance, 0,
+		55, 72, 290, 18, parent, uintptr(ID_LBL_USER_INFO), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hUserInfo, WM_SETFONT, ui.fontBody, 1)
 	ui.updateUserInfoLabel()
@@ -389,7 +393,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Perfil de Conexión:"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		30, 110, 420, 18, parent, 0, hInstance, 0,
+		55, 98, 290, 18, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hLblProfile, WM_SETFONT, ui.fontBold, 1)
 
@@ -398,7 +402,7 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("COMBOBOX"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|CBS_DROPDOWNLIST|CBS_HASSTRINGS,
-		30, 132, 368, 220, parent, uintptr(ID_COMBO_PROFILE), hInstance, 0,
+		55, 120, 246, 200, parent, uintptr(ID_COMBO_PROFILE), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hCombo, WM_SETFONT, ui.fontBody, 1)
 
@@ -407,19 +411,16 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("🔄"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		408, 131, 42, 28, parent, uintptr(ID_BTN_REFRESH), hInstance, 0,
+		306, 119, 39, 26, parent, uintptr(ID_BTN_REFRESH), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hBtnRef, WM_SETFONT, ui.fontBody, 1)
-
-	// Populate profiles
-	ui.refreshProfiles()
 
 	// 8. Label: Código MFA / TOTP
 	hLblTotp, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Código MFA / TOTP (6 dígitos):"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		30, 175, 420, 18, parent, 0, hInstance, 0,
+		55, 158, 290, 18, parent, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hLblTotp, WM_SETFONT, ui.fontBold, 1)
 
@@ -428,48 +429,51 @@ func (ui *WindowsUI) buildControls(parent uintptr) {
 		WS_EX_CLIENTEDGE, uintptr(unsafe.Pointer(utf16Ptr("EDIT"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_CENTER|ES_NUMBER|ES_AUTOHSCROLL,
-		30, 196, 420, 42, parent, uintptr(ID_EDIT_TOTP), hInstance, 0,
+		55, 180, 290, 38, parent, uintptr(ID_EDIT_TOTP), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hTotp, WM_SETFONT, ui.fontTotp, 1)
 
-	// 10. Primary Connect Button
+	// 10. Primary Connect Button (290 × 40 px)
 	ui.hBtnConn, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("🚀 Conectar VPN"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_DEFPUSHBUTTON,
-		30, 255, 420, 48, parent, uintptr(ID_BTN_CONNECT), hInstance, 0,
+		55, 230, 290, 40, parent, uintptr(ID_BTN_CONNECT), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hBtnConn, WM_SETFONT, ui.fontLargeBold, 1)
 
-	// 11. Disconnect Button
+	// 11. Disconnect Button (290 × 34 px)
 	ui.hBtnDisc, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("🛑 Desconectar"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		30, 314, 420, 38, parent, uintptr(ID_BTN_DISCONNECT), hInstance, 0,
+		55, 278, 290, 34, parent, uintptr(ID_BTN_DISCONNECT), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hBtnDisc, WM_SETFONT, ui.fontBold, 1)
 
-	// 12. Config Credentials & User Button
+	// 12. Config Credentials Button (290 × 30 px)
 	ui.hBtnPass, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("🔑 Configurar Credenciales / Usuario"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		30, 364, 420, 36, parent, uintptr(ID_BTN_CONFIG_PASS), hInstance, 0,
+		55, 320, 290, 30, parent, uintptr(ID_BTN_CONFIG_PASS), hInstance, 0,
 	)
-	procSendMessageW.Call(ui.hBtnPass, WM_SETFONT, ui.fontBold, 1)
+	procSendMessageW.Call(ui.hBtnPass, WM_SETFONT, ui.fontBody, 1)
 
 	// 13. Feedback Message Label
 	ui.hFeedback, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Listo para conectar"))),
 		WS_CHILD|WS_VISIBLE|SS_CENTER,
-		30, 420, 420, 24, parent, uintptr(ID_LBL_FEEDBACK), hInstance, 0,
+		55, 362, 290, 20, parent, uintptr(ID_LBL_FEEDBACK), hInstance, 0,
 	)
 	procSendMessageW.Call(ui.hFeedback, WM_SETFONT, ui.fontBody, 1)
 
+	// Populate profiles from real system
+	ui.refreshProfiles()
+
 	if !crypto.HasSavedCredential() {
-		ui.setFeedback("⚠️ Requiere configurar contraseña base por 1ra vez")
+		ui.setFeedback("⚠️ Requiere configurar contraseña base")
 	}
 }
 
@@ -477,24 +481,39 @@ func (ui *WindowsUI) refreshProfiles() {
 	procSendMessageW.Call(ui.hCombo, CB_RESETCONTENT, 0, 0)
 
 	profiles, _ := sophos.DiscoverConnections(ui.client, ui.cfg.FallbackConnections, ui.cfg.ConnectionsDir)
-	for _, p := range profiles {
-		procSendMessageW.Call(ui.hCombo, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16Ptr(p))))
-	}
-
-	if len(profiles) > 0 {
+	if len(profiles) == 0 {
+		ui.hasConnections = false
+		procSendMessageW.Call(ui.hCombo, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16Ptr(NoConnectionsPlaceholder))))
 		procSendMessageW.Call(ui.hCombo, CB_SETCURSEL, 0, 0)
+		ui.setFeedback("⚠️ No se detectaron conexiones en Sophos")
+		procEnableWindow.Call(ui.hBtnConn, 0)
+	} else {
+		ui.hasConnections = true
+		for _, p := range profiles {
+			procSendMessageW.Call(ui.hCombo, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16Ptr(p))))
+		}
+		procSendMessageW.Call(ui.hCombo, CB_SETCURSEL, 0, 0)
+		procEnableWindow.Call(ui.hBtnConn, 1)
+		ui.setFeedback("Perfiles actualizados 🔄")
 	}
 }
 
 func (ui *WindowsUI) getSelectedProfile() string {
+	if !ui.hasConnections {
+		return ""
+	}
 	idx, _, _ := procSendMessageW.Call(ui.hCombo, CB_GETCURSEL, 0, 0)
 	if int32(idx) < 0 {
-		return ui.cfg.DefaultConnection
+		return ""
 	}
 
 	buf := make([]uint16, 256)
 	procSendMessageW.Call(ui.hCombo, CB_GETLBTEXT, idx, uintptr(unsafe.Pointer(&buf[0])))
-	return syscall.UTF16ToString(buf)
+	selected := syscall.UTF16ToString(buf)
+	if selected == NoConnectionsPlaceholder {
+		return ""
+	}
+	return selected
 }
 
 func (ui *WindowsUI) getTotpText() string {
@@ -524,13 +543,24 @@ func (ui *WindowsUI) setBusy(busy bool) {
 	} else {
 		procSetWindowTextW.Call(ui.hBtnConn, uintptr(unsafe.Pointer(utf16Ptr("🚀 Conectar VPN"))))
 	}
-	procEnableWindow.Call(ui.hBtnConn, val)
+	if ui.hasConnections {
+		procEnableWindow.Call(ui.hBtnConn, val)
+	}
 	procEnableWindow.Call(ui.hBtnDisc, val)
 	procEnableWindow.Call(ui.hBtnPass, val)
 	procEnableWindow.Call(ui.hBtnRef, val)
 }
 
 func (ui *WindowsUI) onConnect() {
+	if !ui.hasConnections {
+		procMessageBoxW.Call(ui.hwnd,
+			uintptr(unsafe.Pointer(utf16Ptr("No se encontraron perfiles de VPN en este equipo.\n\nPor favor importa tu archivo de conexión (.ovpn o .tgb) en tu cliente de Sophos Connect y luego presiona el botón 🔄."))),
+			uintptr(unsafe.Pointer(utf16Ptr("Sin Conexiones Disponibles"))),
+			MB_OK|MB_ICONWARNING,
+		)
+		return
+	}
+
 	totp := ui.getTotpText()
 	if totp == "" {
 		procMessageBoxW.Call(ui.hwnd,
@@ -563,8 +593,16 @@ func (ui *WindowsUI) onConnect() {
 	}
 
 	selectedProfile := ui.getSelectedProfile()
-	username := ui.getEffectiveUsername()
+	if selectedProfile == "" {
+		procMessageBoxW.Call(ui.hwnd,
+			uintptr(unsafe.Pointer(utf16Ptr("Selecciona un perfil de conexión válido."))),
+			uintptr(unsafe.Pointer(utf16Ptr("Perfil Inválido"))),
+			MB_OK|MB_ICONWARNING,
+		)
+		return
+	}
 
+	username := ui.getEffectiveUsername()
 	fullPassword := basePass + totp
 
 	ui.setBusy(true)
@@ -589,9 +627,8 @@ func (ui *WindowsUI) onConnect() {
 			ui.setStatus("🟢 Conectado")
 			ui.setFeedback("✅ Conexión iniciada con éxito")
 			procSetWindowTextW.Call(ui.hTotp, uintptr(unsafe.Pointer(utf16Ptr(""))))
-			
-			// Sanitized professional popup message without displaying passwords
-			successMsg := fmt.Sprintf("Se ha enviado la orden de conexión a Sophos Connect:\n\nPerfil: %s\nUsuario: %s\n\nVerifica el estado de la sesión en el agente de Sophos en la barra de tareas.", selectedProfile, username)
+
+			successMsg := fmt.Sprintf("Se ha enviado la orden de conexión a Sophos Connect:\n\nPerfil: %s\nUsuario: %s\n\nVerifica el estado en el agente de Sophos en la barra de tareas.", selectedProfile, username)
 			procMessageBoxW.Call(ui.hwnd,
 				uintptr(unsafe.Pointer(utf16Ptr(successMsg))),
 				uintptr(unsafe.Pointer(utf16Ptr("VPN en Proceso"))),
@@ -603,6 +640,15 @@ func (ui *WindowsUI) onConnect() {
 
 func (ui *WindowsUI) onDisconnect() {
 	selectedProfile := ui.getSelectedProfile()
+	if selectedProfile == "" {
+		procMessageBoxW.Call(ui.hwnd,
+			uintptr(unsafe.Pointer(utf16Ptr("No hay ningún perfil seleccionado para desconectar."))),
+			uintptr(unsafe.Pointer(utf16Ptr("Aviso"))),
+			MB_OK|MB_ICONWARNING,
+		)
+		return
+	}
+
 	ui.setBusy(true)
 	ui.setFeedback("Desconectando...")
 
@@ -651,7 +697,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	width := int32(400)
+	width := int32(380)
 	height := int32(310)
 
 	screenWidth, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
@@ -673,7 +719,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Personalizar usuario (distinto al de Windows)"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX,
-		20, 15, 350, 22, hDlg, uintptr(ID_CHECK_CUSTOM_USER), hInstance, 0,
+		20, 15, 330, 22, hDlg, uintptr(ID_CHECK_CUSTOM_USER), hInstance, 0,
 	)
 	procSendMessageW.Call(hDlgCheckUser, WM_SETFONT, ui.fontBold, 1)
 
@@ -682,7 +728,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Nombre de Usuario VPN:"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		20, 45, 350, 18, hDlg, 0, hInstance, 0,
+		20, 45, 330, 18, hDlg, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hLblUser, WM_SETFONT, ui.fontBody, 1)
 
@@ -697,7 +743,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		WS_EX_CLIENTEDGE, uintptr(unsafe.Pointer(utf16Ptr("EDIT"))),
 		uintptr(unsafe.Pointer(utf16Ptr(currUser))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_LEFT|ES_AUTOHSCROLL,
-		20, 68, 345, 28, hDlg, uintptr(ID_USER_EDIT), hInstance, 0,
+		20, 68, 325, 28, hDlg, uintptr(ID_USER_EDIT), hInstance, 0,
 	)
 	procSendMessageW.Call(hDlgUserEdit, WM_SETFONT, ui.fontBody, 1)
 
@@ -714,7 +760,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Contraseña Base corporativa (SIN TOTP):"))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		20, 110, 350, 18, hDlg, 0, hInstance, 0,
+		20, 108, 330, 18, hDlg, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hLblPass, WM_SETFONT, ui.fontBody, 1)
 
@@ -723,7 +769,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		WS_EX_CLIENTEDGE, uintptr(unsafe.Pointer(utf16Ptr("EDIT"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_PASSWORD|ES_AUTOHSCROLL,
-		20, 132, 345, 28, hDlg, uintptr(ID_PASS_EDIT), hInstance, 0,
+		20, 130, 325, 28, hDlg, uintptr(ID_PASS_EDIT), hInstance, 0,
 	)
 	procSendMessageW.Call(hDlgPassEdit, WM_SETFONT, ui.fontBody, 1)
 
@@ -732,7 +778,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		0, uintptr(unsafe.Pointer(utf16Ptr("STATIC"))),
 		uintptr(unsafe.Pointer(utf16Ptr("ℹ️ Tu contraseña se cifra con DPAPI de Windows."))),
 		WS_CHILD|WS_VISIBLE|SS_LEFT,
-		20, 170, 345, 18, hDlg, 0, hInstance, 0,
+		20, 168, 325, 18, hDlg, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hLblNote, WM_SETFONT, ui.fontBody, 1)
 
@@ -741,7 +787,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Guardar Credenciales"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_DEFPUSHBUTTON,
-		20, 205, 170, 38, hDlg, uintptr(ID_PASS_SAVE), hInstance, 0,
+		20, 202, 160, 36, hDlg, uintptr(ID_PASS_SAVE), hInstance, 0,
 	)
 	procSendMessageW.Call(hSave, WM_SETFONT, ui.fontBold, 1)
 
@@ -750,7 +796,7 @@ func (ui *WindowsUI) showCredentialsDialog() {
 		0, uintptr(unsafe.Pointer(utf16Ptr("BUTTON"))),
 		uintptr(unsafe.Pointer(utf16Ptr("Cancelar"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
-		200, 205, 165, 38, hDlg, uintptr(ID_PASS_CANCEL), hInstance, 0,
+		185, 202, 160, 36, hDlg, uintptr(ID_PASS_CANCEL), hInstance, 0,
 	)
 	procSendMessageW.Call(hCancel, WM_SETFONT, ui.fontBody, 1)
 
@@ -808,7 +854,6 @@ func credDlgWndProc(hwnd uintptr, msg uint32, wParam uintptr, lParam uintptr) ui
 					procSetFocus.Call(hDlgPassEdit)
 					return 0
 				}
-				// If user only changed username and left password empty, keep existing password
 				ui.setFeedback("👤 Configuración de usuario actualizada")
 				procMessageBoxW.Call(hwnd,
 					uintptr(unsafe.Pointer(utf16Ptr("Configuración actualizada correctamente."))),

@@ -61,13 +61,15 @@ jobs:
           # Compilar binario nativo de Windows optimizado
           go build -ldflags="-H=windowsgui -s -w -X 'main.Version=$Tag'" -o dist/sophosquick.exe ./cmd/sophosquick
 
-      - name: Generar Checksum SHA-256
+      - name: Generar Paquete ZIP y Checksums SHA-256
         shell: pwsh
         run: |
           cd dist
-          $Hash = (Get-FileHash -Path sophosquick.exe -Algorithm SHA256).Hash
-          "$Hash  sophosquick.exe" | Out-File -Encoding ascii -FilePath sophosquick.exe.sha256
-          Get-Content sophosquick.exe.sha256
+          Compress-Archive -Path sophosquick.exe, ..\README.md, ..\LICENSE -DestinationPath sophosquick-windows-amd64.zip -Force
+          $HashExe = (Get-FileHash -Path sophosquick.exe -Algorithm SHA256).Hash
+          $HashZip = (Get-FileHash -Path sophosquick-windows-amd64.zip -Algorithm SHA256).Hash
+          "$HashExe  sophosquick.exe" | Out-File -Encoding ascii -FilePath sophosquick.exe.sha256
+          "$HashZip  sophosquick-windows-amd64.zip" | Out-File -Encoding ascii -FilePath sophosquick-windows-amd64.zip.sha256
           cd ..
 
       - name: Publicar Release en GitHub
@@ -80,4 +82,6 @@ jobs:
           generate_release_notes: true
           files: |
             dist/sophosquick.exe
+            dist/sophosquick-windows-amd64.zip
             dist/sophosquick.exe.sha256
+            dist/sophosquick-windows-amd64.zip.sha256
